@@ -1,0 +1,5 @@
+package net.alexheavens.cs4099.simulation;
+
+public enum SimulationState {
+	PRE_SIMULATION, SIMULATING, POST_SIMULATION, PAUSED, RECEIVE_BLOCK, HALTED, COMPLETED, SETUP, NODE_ERROR, TIMEOUT
+}
