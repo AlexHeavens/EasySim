@@ -23,7 +23,7 @@ public class DynamicClassLoaderTest {
 	 * Tests that loading a valid Node is as expected.
 	 */
 	public void testLoadValid() throws IOException, ClassNotFoundException, ClassLoaderException {
-		File mockScriptFile = new File("testing/NoPackageTreeLeaderNode.java");
+		File mockScriptFile = new File("test/NoPackageTreeLeaderNode.java");
 		Class<?> someClass = testLoader.loadClass(mockScriptFile);
 		assertEquals(NoPackageTreeLeaderNode.class, someClass);
 	}
@@ -33,7 +33,7 @@ public class DynamicClassLoaderTest {
 	 * Test that loading an invalid .java file is not possible.
 	 */
 	public void testLoadInvalid() throws IOException, ClassNotFoundException, ClassLoaderException{
-		File badScript = new File("testing/BadClass.java");
+		File badScript = new File("test/BadClass.java");
 		testLoader.loadClass(badScript);
 	}
 	

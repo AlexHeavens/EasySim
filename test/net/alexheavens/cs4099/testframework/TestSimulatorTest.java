@@ -25,7 +25,7 @@ public class TestSimulatorTest {
 	public void setup() throws JSONException, NetworkConfigException,
 			IOException, InstantiationException, IllegalAccessException {
 		testNet = new NetworkConfig(new File(
-				"testing/testconfigfiles/SimpleNet.json"));
+				"test/testconfigfiles/SimpleNet.json"));
 		testSim = new TestSimulator(testNet, TreeLeaderNode.class);
 	}
 

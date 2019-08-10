@@ -21,7 +21,7 @@ public class VisualisationPanelTest extends JFrame {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
 		File resultsFile = new File(
-				"testing/testoutputfiles/treeleaderexample.json");
+				"test/testoutputfiles/treeleaderexample.json");
 
 		StringBuilder sb = new StringBuilder();
 		BufferedReader br = new BufferedReader(new FileReader(resultsFile));

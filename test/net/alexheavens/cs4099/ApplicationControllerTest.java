@@ -31,7 +31,7 @@ public class ApplicationControllerTest {
 		testController = new ApplicationController();
 		NetworkConfigFactory netFact = new NetworkConfigFactory();
 		testNet = netFact.createTreeNetwork(6, 3);
-		testOutputFile = new File("testing/testoutputfiles/testsimresults.json");
+		testOutputFile = new File("test/testoutputfiles/testsimresults.json");
 		testOutputFile.delete();
 		testLimit = new ClassLimitation(true, true);
 	}

@@ -1,8 +1,8 @@
-apply plugin: 'java'
+plugins {
+    id 'java'
+}
 
-sourceCompatibility = '1.8'
-targetCompatibility = '1.8'
-version = '0.1.0'
+apply plugin: 'java'
 
 repositories {
 	mavenCentral()
@@ -24,6 +24,9 @@ sourceSets {
 	test {
 		java {
 			srcDir 'test'
+			exclude '**BadClass**'
+			exclude '**/testoutputfiles/**'
+			exclude '**/testconfigfiles/**'
 			srcDir 'examples'
 		}
 	}

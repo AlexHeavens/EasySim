@@ -17,6 +17,7 @@ public class SimulationProfilerTest {
 	private static final int N_NODES = 100;
 	private static final long NODE_TIMEOUT = 500000000;
 	private static final long EXP_COMP_TIME = 700;
+	private  static final long PAUSE_TOLERANCE_NS = 1000000; // To counteract inherent clock uncertainty.
 	private SimulationProfiler testProfiler;
 	private LeaderBarrier testBarrier;
 	private Node loopNode;
@@ -83,7 +84,7 @@ public class SimulationProfilerTest {
 			@Override
 			public void execute() {
 				while (testProfiler.threadInterface.getThreadCpuTime(loopNode
-						.getThread().getId()) < pauseNanos) {
+						.getThread().getId()) < pauseNanos + PAUSE_TOLERANCE_NS) {
 				}
 			}
 		};
@@ -109,12 +110,12 @@ public class SimulationProfilerTest {
 			@Override
 			public void execute() {
 				while (testProfiler.threadInterface.getThreadCpuTime(loopNode
-						.getThread().getId()) < pauseNanos) {
+						.getThread().getId()) < pauseNanos + PAUSE_TOLERANCE_NS) {
 				}
 				loopNode.setSimulationState(SimulationState.RECEIVE_BLOCK);
 				loopNode.setSimulationState(SimulationState.SIMULATING);
 				while (testProfiler.threadInterface.getThreadCpuTime(loopNode
-						.getThread().getId()) < pauseNanos * 2) {
+						.getThread().getId()) < pauseNanos * 2 + PAUSE_TOLERANCE_NS) {
 				}
 			}
 		};
@@ -143,13 +144,13 @@ public class SimulationProfilerTest {
 				while (true) {
 					while (testProfiler.threadInterface
 							.getThreadCpuTime(loopNode.getThread().getId()) < pauseNanos
-							* 2 * loop - pauseNanos) {
+							* 2 * loop - pauseNanos + PAUSE_TOLERANCE_NS) {
 					}
 					loopNode.setSimulationState(SimulationState.RECEIVE_BLOCK);
 					loopNode.setSimulationState(SimulationState.SIMULATING);
 					while (testProfiler.threadInterface
 							.getThreadCpuTime(loopNode.getThread().getId()) < pauseNanos
-							* 2 * loop) {
+							* 2 * loop + PAUSE_TOLERANCE_NS)  {
 					}
 					loop++;
 					loopNode.pause(1);

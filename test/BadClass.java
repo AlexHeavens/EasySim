@@ -3,9 +3,9 @@ public class BadClass {
 
 	private int a;
 
-	// sdfafsaf
+	sdfafsaf
 
-	// dsafasdff
+	dsafasdff
 
 	private int b;
 }
