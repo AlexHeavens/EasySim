@@ -152,7 +152,7 @@ public class NetworkTest {
 	@Test
 	public void testNetworkCreationFromConfig() {
 		INetworkConfig netCon = new NetworkConfig();
-		File conFile = new File("test/testconfigfiles/SimpleNet.json");
+		File conFile = new File("test/networks/simple.network.json");
 		try {
 			netCon.appendFromFile(conFile);
 		} catch (Exception e) {

@@ -24,7 +24,6 @@ import org.junit.Test;
 
 public class NetworkConfigTest {
 
-	private static final String TEMP_TEST_FILEPATH = "test/testconfigfiles/TestOutput.json";
 	private static final int N_NODES = 100;
 	private INetworkConfig netcon;
 	private INetworkConfig fullCon;
@@ -113,7 +112,7 @@ public class NetworkConfigTest {
 	@Test
 	public void testReadSimpleNetwork() throws JSONException, NetworkConfigException, IOException {
 
-		File file = new File("test/testconfigfiles/SimpleNet.json");
+		File file = new File("test/networks/simple.network.json");
 		netcon.appendFromFile(file);
 
 		Collection<ILinkConfig> links = netcon.links();
@@ -132,7 +131,7 @@ public class NetworkConfigTest {
 	@Test
 	public void testReadRubbishFile() {
 
-		File file = new File("test/testconfigfiles/rubbish.txt");
+		File file = new File("test/networks/rubbish.txt");
 		try {
 			netcon.appendFromFile(file);
 			fail("Did not throw JSONException.");
@@ -146,7 +145,7 @@ public class NetworkConfigTest {
 	@Test
 	public void testReadBadJSON() {
 
-		File file = new File("test/testconfigfiles/bad.json");
+		File file = new File("test/networks/bad.network.json");
 		try {
 			netcon.appendFromFile(file);
 			fail("Did not throw JSONException.");
@@ -157,25 +156,25 @@ public class NetworkConfigTest {
 	}
 
 	@Test(expected = NetworkConfigException.class)
-	public void testReadRepLinkConfig() throws JSONException,
+	public void testReadDuplicatedLinkConfig() throws JSONException,
 			NetworkConfigException, IOException {
-		File file = new File("test/testconfigfiles/RepLinkNet.json");
+		File file = new File("test/networks/duplicated_link.network.json");
 		netcon.appendFromFile(file);
 
 	}
 
 	@Test(expected = NetworkConfigException.class)
-	public void testReadRepRevLinkConfig() throws JSONException,
+	public void testReadDuplicatedReversedLinkConfig() throws JSONException,
 			NetworkConfigException, IOException {
-		File file = new File("test/testconfigfiles/RepRevLinkNet.json");
+		File file = new File("test/networks/duplicated_reversed_link.network.json");
 		netcon.appendFromFile(file);
 	}
 
 	@Test
-	public void testWriteDuplicateNetwork() {
+	public void testWriteDuplicateNetwork() throws IOException {
 
-		File from = new File("test/testconfigfiles/SimpleNet.json");
-		File to = new File(TEMP_TEST_FILEPATH);
+		File from = new File("test/networks/simple.network.json");
+		File to = File.createTempFile("NetworkConfigTest.testWriteDuplicateNetwork.to",".network.json");
 		try {
 			netcon.appendFromFile(from);
 		} catch (Exception e) {
@@ -339,7 +338,7 @@ public class NetworkConfigTest {
 		}
 
 		final File testFile = new File(
-				"test/testconfigfiles/eventtestnet.json");
+				"test/networks/event_test.network.json");
 		netcon = new NetworkConfig(N_NODES);
 		netcon.setNodeDeathEvents(deathMap);
 		testFile.delete();
