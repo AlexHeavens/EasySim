@@ -47,7 +47,8 @@ public class UserCodeTest {
 			fail("Did not catch user runtime exception.");
 		}
 
-		while (testNode.getSimulationState() == SimulationState.PRE_SIMULATION
+		while (testNode.getSimulationState() == SimulationState.SETUP
+				|| testNode.getSimulationState() == SimulationState.PRE_SIMULATION
 				|| testNode.getSimulationState() == SimulationState.SIMULATING)
 			;
 
