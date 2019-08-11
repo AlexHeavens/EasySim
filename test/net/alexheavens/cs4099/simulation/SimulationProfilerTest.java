@@ -16,7 +16,7 @@ public class SimulationProfilerTest {
 
 	private static final int N_NODES = 100;
 	private static final long NODE_TIMEOUT = 500000000;
-	private static final long EXP_COMP_TIME = 700;
+	private static final long EXPECTED_COMPUTATION_TIME_MS = 1000;
 	private  static final long PAUSE_TOLERANCE_NS = 1000000; // To counteract inherent clock uncertainty.
 	private SimulationProfiler testProfiler;
 	private LeaderBarrier testBarrier;
@@ -41,7 +41,7 @@ public class SimulationProfilerTest {
 		new SimulationProfiler(-1);
 	}
 
-	@Test(timeout = EXP_COMP_TIME)
+	@Test(timeout = EXPECTED_COMPUTATION_TIME_MS)
 	/**
 	 * Test that adding a node that never blocks will kill it of after the
 	 * threshold.
@@ -67,7 +67,7 @@ public class SimulationProfilerTest {
 	 */
 	public void testNoTimeout() throws InterruptedException {
 		loopNode.simulate(testBarrier, testProfiler);
-		Thread.sleep(EXP_COMP_TIME);
+		Thread.sleep(EXPECTED_COMPUTATION_TIME_MS);
 		assertNotSame(SimulationState.POST_SIMULATION,
 				loopNode.getSimulationState());
 	}
@@ -90,7 +90,7 @@ public class SimulationProfilerTest {
 		};
 		testProfiler.incrementTimestep(0);
 		loopNode.simulate(testBarrier, testProfiler);
-		Thread.sleep(EXP_COMP_TIME);
+		Thread.sleep(EXPECTED_COMPUTATION_TIME_MS);
 		final Map<Long, Long> testMap = testProfiler
 				.getTimeStepProcessIdMap().get(loopNode.getSimulationId());
 		final Long time = testMap.get(0l);
