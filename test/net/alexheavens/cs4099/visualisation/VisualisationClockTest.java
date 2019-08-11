@@ -111,7 +111,7 @@ public class VisualisationClockTest {
 		assertEquals(State.PAUSED, testClock.getState());
 	}
 
-	@Test(timeout = 100)
+	@Test(timeout = 150)
 	/**
 	 * Test that the rate at which the clock ticks can be decreased.
 	 */
