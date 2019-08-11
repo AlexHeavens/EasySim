@@ -21,17 +21,16 @@ sourceSets {
 
 	examples {
 		java {
-			srcDir 'examples'
+			srcDir 'src'
+			srcDir 'examples/node_scripts'
 		}
 	}
 
 	test {
 		java {
-			srcDir 'test'
+			srcDir 'test/src'
+			srcDir 'test/node_scripts'
 			exclude '**BadClass**'
-			exclude '**/testoutputfiles/**'
-			exclude '**/testconfigfiles/**'
-			srcDir 'examples'
 		}
 	}
 }

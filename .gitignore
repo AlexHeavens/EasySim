@@ -5,7 +5,7 @@ bin/
 gradle/
 gradlew.bat
 gradlew
-.project/
+.project
 .settings/
 .classpath
 *.swp
