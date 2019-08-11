@@ -19,19 +19,17 @@ sourceSets {
 		}
 	}
 
-	examples {
+	example_nodes {
 		java {
-			srcDir 'examples'
+			srcDir 'examples/node_scripts'
 		}
 	}
 
 	test {
 		java {
-			srcDir 'test'
+			srcDir 'test/src'
+			srcDir 'test/node_scripts'
 			exclude '**BadClass**'
-			exclude '**/testoutputfiles/**'
-			exclude '**/testconfigfiles/**'
-			srcDir 'examples'
 		}
 	}
 }

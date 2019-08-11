@@ -1,4 +1,3 @@
-package net.alexheavens.cs4099.examples;
 import java.awt.Color;
 import java.util.HashMap;
 import net.alexheavens.cs4099.network.IMessage;

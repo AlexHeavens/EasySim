@@ -33,7 +33,7 @@ public class DynamicClassLoaderTest {
 	 * Test that loading an invalid .java file is not possible.
 	 */
 	public void testLoadInvalid() throws IOException, ClassNotFoundException, ClassLoaderException{
-		File badScript = new File("test/BadClass.java");
+		File badScript = new File("test/node_scripts/BadClass.java");
 		testLoader.loadClass(badScript);
 	}
 	

@@ -1,4 +1,3 @@
-package net.alexheavens.cs4099.examples;
 import net.alexheavens.cs4099.network.StringMessage;
 import net.alexheavens.cs4099.usercode.NodeScript;
 

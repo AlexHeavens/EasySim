@@ -27,18 +27,19 @@ public class ApplicationControllerTest {
 	private ClassLimitation testLimit;
 
 	@Before
-	public void setup() {
+	public void setup() throws IOException {
 		testController = new ApplicationController();
 		NetworkConfigFactory netFact = new NetworkConfigFactory();
 		testNet = netFact.createTreeNetwork(6, 3);
-		testOutputFile = new File("test/testoutputfiles/testsimresults.json");
-		testOutputFile.delete();
+		testOutputFile = File.createTempFile("ApplicationControllerTest", ".simresults.json");
+		testOutputFile.delete(); // Input file isn't expect to be on disk.
+
 		testLimit = new ClassLimitation(true, true);
 	}
 
 	@After
 	public void breakdown() {
-		//testOutputFile.delete();
+		testOutputFile.delete();
 	}
 
 	@Test

@@ -1,4 +1,3 @@
-package net.alexheavens.cs4099.examples;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -11,18 +10,18 @@ import net.alexheavens.cs4099.network.configuration.NetworkConfigFactory;
 import net.alexheavens.cs4099.simulation.SimulationRunner;
 import net.sf.json.JSONObject;
 
-public class NodeFailureExample {
+public class TreeLeaderElectionExample {
 
 	public static void main(String[] arStrings) {
 		INetworkConfigFactory configFactory = new NetworkConfigFactory();
-		INetworkConfig netConfig = configFactory.createTreeNetwork(3, 4);
+		INetworkConfig netConfig = configFactory.createTreeNetwork(5, 5);
 		Network network = null;
+		System.out.println("Expected: " + (netConfig.nodeCount() - 1));
 		try {
-			network = new Network(FailureNode.class,
-					netConfig, false);
-			SimulationRunner sim = new SimulationRunner(network, 150);
+			network = new Network(TreeLeaderNode.class, netConfig, false);
+			SimulationRunner sim = new SimulationRunner(network, 1000);
 			JSONObject obj = sim.simulate().getEvents().toJSONObject();
-			FileWriter fw = new FileWriter(new File("examples/failures.json"));
+			FileWriter fw = new FileWriter(new File("examples/treeleader.json"));
 			BufferedWriter writer = new BufferedWriter(fw);
 			obj.write(writer);
 			writer.close();

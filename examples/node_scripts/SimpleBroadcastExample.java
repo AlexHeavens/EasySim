@@ -1,5 +1,3 @@
-package net.alexheavens.cs4099.examples;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
