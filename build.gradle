@@ -19,8 +19,9 @@ sourceSets {
 		}
 	}
 
-	example_nodes {
+	examples {
 		java {
+			srcDir 'src'
 			srcDir 'examples/node_scripts'
 		}
 	}
