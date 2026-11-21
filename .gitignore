@@ -2,9 +2,6 @@
 build/
 bin/
 .gradle/
-gradle/
-gradlew.bat
-gradlew
 .project
 .settings/
 .classpath
