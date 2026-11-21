@@ -247,7 +247,7 @@ public class VisualisationPanel extends JPanel {
 					@SuppressWarnings("unchecked")
 					Iterator<VisualItem> iter = m_vis.items(m_group);
 					while (iter.hasNext()) {
-						VisualItem item = (VisualItem) iter.next();
+						VisualItem item = iter.next();
 						VisualisationMessage message = (VisualisationMessage) item
 								.get(VisualisationPanel.messageIndex);
 						Node source = message.getSource();

@@ -52,3 +52,10 @@ jar {
 		configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
 	}
 }
+
+// The compiler is the Java linter. The three excluded categories hold known debt:
+// java.util.Observable/Observer (deprecated), `new Integer(...)` and AccessController
+// (marked for removal), and prefuse's raw iterators (unchecked). Every other category fails the build.
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs << '-Xlint:all,-deprecation,-removal,-unchecked' << '-Werror'
+}
