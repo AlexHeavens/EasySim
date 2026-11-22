@@ -47,6 +47,12 @@ public class NodeInstrumenterTest {
 	}
 
 	@Test
+	public void killsALoopInsideACatchAllHandler() throws Exception {
+		assertKilled(start("HandlerLoopNode",
+				"try { throw new RuntimeException(); } catch (Throwable t) { while (true) { try { Math.sqrt(2); } catch (Throwable u) { } } }"));
+	}
+
+	@Test
 	public void killsARecursionThatNeverReturns() throws Exception {
 		Thread thread = start("RecursiveNode",
 				"try { spin(0); } catch (StackOverflowError e) { run(); }\n	}\n	private void spin(int depth) { spin(depth + 1);");

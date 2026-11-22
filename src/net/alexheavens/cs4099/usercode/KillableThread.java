@@ -12,6 +12,11 @@ public class KillableThread extends Thread {
 	public KillableThread(Runnable target) {
 		super(target);
 		setDaemon(true);
+		// Like ThreadDeath, a kill ends the thread quietly; any other uncaught throwable is reported as usual.
+		setUncaughtExceptionHandler((thread, error) -> {
+			if (!(error instanceof NodeKilledError))
+				thread.getThreadGroup().uncaughtException(thread, error);
+		});
 	}
 
 	public void kill() {
