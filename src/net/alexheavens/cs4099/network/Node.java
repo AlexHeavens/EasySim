@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Observable;
+import java.time.Duration;
+import java.util.logging.Logger;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -33,6 +35,11 @@ import net.alexheavens.cs4099.usercode.NodeScript;
  * @version 1.0
  */
 public class Node extends Observable implements INodeImpl, Runnable {
+
+	private static final Logger LOGGER = Logger.getLogger(Node.class.getName());
+
+	/** How long a killed node may keep running before it is reported as abandoned. */
+	private static final Duration KILL_GRACE = Duration.ofSeconds(5);
 
 	private ReentrantLock lock;
 	private Condition blocked, completed;
@@ -584,8 +591,10 @@ public class Node extends Observable implements INodeImpl, Runnable {
 			}.start();
 			// Thread.stop() no longer exists (removed in JDK 20). The kill makes the safe points in the user's
 			// code throw, which ends the thread. The node is also ended here, so a thread stuck somewhere
-			// without a safe point (a native call) cannot hold up the simulation; it is a daemon.
-			((KillableThread) nodeThread).kill();
+			// without a safe point (a native call) cannot hold up the simulation; it is a daemon, and the
+			// watchdog reports it if it is still running after the grace period.
+			((KillableThread) nodeThread).kill(KILL_GRACE, () -> LOGGER.warning(
+					"Node " + this + " did not stop after being killed and was abandoned."));
 			setSimulationState(SimulationState.POST_SIMULATION);
 		} finally {
 			lock.unlock();
