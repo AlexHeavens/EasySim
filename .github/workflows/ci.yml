@@ -50,3 +50,17 @@ jobs:
 
       - name: Build, lint and test
         run: ./gradlew build --console=plain
+
+      # CircleCI's test job kept the results; this also fails a build whose tests silently vanished.
+      - name: Count tests
+        run: |
+          count=$(cat build/test-results/test/*.xml | grep -c '<testcase ' || true)
+          echo "tests run: $count"
+          test "$count" -gt 0
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results
+          path: build/test-results/
