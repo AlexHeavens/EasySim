@@ -81,6 +81,8 @@ tasks.register('agentTest', Test) {
 	include agentPackages
 	doFirst {
 		jvmArgs "-javaagent:${configurations.javaflowAgent.singleFile}"
+		// ChildJvm tests start a child JVM, which needs the agent jar's path too.
+		systemProperty 'javaflow.agent', configurations.javaflowAgent.singleFile.absolutePath
 	}
 }
 
