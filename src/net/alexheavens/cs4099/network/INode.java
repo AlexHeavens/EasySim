@@ -3,6 +3,8 @@ package net.alexheavens.cs4099.network;
 import java.awt.Color;
 import java.util.Iterator;
 
+import org.apache.commons.javaflow.api.continuable;
+
 /**
  * The INode interface provides the user of the network simulator an API to
  * program their network algorithm against. The following methods are those
@@ -31,6 +33,7 @@ public interface INode {
 	 * @param pauseSteps
 	 *            the number of steps to pause the node for.
 	 */
+	@continuable
 	public void pause(long pauseSteps);
 
 	/**
@@ -42,6 +45,7 @@ public interface INode {
 	 * @param message
 	 *            the message that is sent to the neighbour.
 	 */
+	@continuable
 	public void send(INode recipient, IMessage<?> message);
 
 	/**
@@ -50,6 +54,7 @@ public interface INode {
 	 * @param message
 	 *            the message to be sent.
 	 */
+	@continuable
 	public void sendAll(IMessage<?> message);
 
 	/**
@@ -60,6 +65,7 @@ public interface INode {
 	 * @note This method will block until a message arrives.
 	 * @return The incoming message.
 	 */
+	@continuable
 	public <MsgType extends IMessage<?>> MsgType receive();
 
 	/**
@@ -72,6 +78,7 @@ public interface INode {
 	 *            The neighbouring node from which a message is expected.
 	 * @return A message from the specified neighbour.
 	 */
+	@continuable
 	public <MsgType extends IMessage<?>> MsgType receive(INode neighbour);
 
 	/**
@@ -82,6 +89,7 @@ public interface INode {
 	/**
 	 * @return The number of neighbours connected to an <code>INode</code>.
 	 */
+	@continuable
 	public int neighbourCount();
 
 	/**
@@ -128,6 +136,7 @@ public interface INode {
 	 * @param colour
 	 *            the new colour of the node.
 	 */
+	@continuable
 	public void setColour(Color colour);
 
 	/**

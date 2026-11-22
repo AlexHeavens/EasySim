@@ -2,6 +2,8 @@ package net.alexheavens.cs4099.usercode;
 
 import java.awt.Color;
 
+import org.apache.commons.javaflow.api.continuable;
+
 import net.alexheavens.cs4099.network.IMessage;
 import net.alexheavens.cs4099.network.INode;
 import net.alexheavens.cs4099.simulation.InvalidCallException;
@@ -37,6 +39,7 @@ public abstract class NodeScript {
 	 * pause(), send(), setColour() or receive() can be made, which will result
 	 * in an {@link InvalidCallException}.
 	 */
+	@continuable
 	public void setup() {
 
 	}
@@ -68,6 +71,7 @@ public abstract class NodeScript {
 	 * @param colour
 	 *            the colour that the Node will now appear as.
 	 */
+	@continuable
 	public void setColour(Color colour) {
 		node.setColour(colour);
 	}
@@ -79,6 +83,7 @@ public abstract class NodeScript {
 	 * guaranteed to be called at timestep 0 for all Nodes that do not fail in
 	 * the setup phase of simulation.
 	 */
+	@continuable
 	public abstract void execute();
 
 	/**
@@ -91,6 +96,7 @@ public abstract class NodeScript {
 	 * @param timesteps
 	 *            the number of timesteps the Node will pause for.
 	 */
+	@continuable
 	public void pause(long timesteps) {
 		node.pause(timesteps);
 	}
@@ -104,6 +110,7 @@ public abstract class NodeScript {
 	 * @param message
 	 *            either a Numeric or String message.
 	 */
+	@continuable
 	public void send(int recipient, IMessage<?> message) {
 		INode recipientNode = node.getNeighbour(recipient);
 		node.send(recipientNode, message);
@@ -116,6 +123,7 @@ public abstract class NodeScript {
 	 * @param message
 	 *            either a Numeric or String message.
 	 */
+	@continuable
 	public void sendAll(IMessage<?> message) {
 		node.sendAll(message);
 	}
@@ -129,6 +137,7 @@ public abstract class NodeScript {
 	 * @return the most recent message within any message queue for the Node, or
 	 *         null if no neighbours are attached to this Node.
 	 */
+	@continuable
 	public <MsgType extends IMessage<?>> MsgType receive() {
 		return node.receive();
 	}
@@ -145,6 +154,7 @@ public abstract class NodeScript {
 	 *         the specified neighbour for this Node, or null if no neighbours
 	 *         are attached to this Node.
 	 */
+	@continuable
 	public <MsgType extends IMessage<?>> MsgType receive(int neighbour) {
 		INode senderNode = node.getNeighbour(neighbour);
 		return node.receive(senderNode);
@@ -153,6 +163,7 @@ public abstract class NodeScript {
 	/**
 	 * @return the number of neighbouring Nodes connected to this.
 	 */
+	@continuable
 	public int neighbourCount() {
 		return node.neighbourCount();
 	}
