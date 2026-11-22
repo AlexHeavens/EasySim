@@ -14,7 +14,7 @@ It is a student project from 2012. It is not a library, a packet-level network s
 
 ## Setup
 
-Prerequisites: JDK 17 (Gradle downloads the pinned Gradle version itself), and Docker for the workflow linter.
+Prerequisites: JDK 27 (Gradle downloads the pinned Gradle version itself), and Docker for the workflow linter.
 
 ```
 scripts/install-gitleaks.sh        # the pre-commit hook needs gitleaks

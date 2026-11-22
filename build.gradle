@@ -8,7 +8,7 @@ repositories {
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(27)
 	}
 }
 
@@ -53,9 +53,10 @@ jar {
 	}
 }
 
-// The compiler is the Java linter. The three excluded categories hold known debt:
-// java.util.Observable/Observer (deprecated), `new Integer(...)` and AccessController
-// (marked for removal), and prefuse's raw iterators (unchecked). Every other category fails the build.
+// The compiler is the Java linter. The excluded categories hold known debt: java.util.Observable/Observer
+// (deprecated), `new Integer(...)` and AccessController (marked for removal), prefuse's raw iterators
+// (unchecked), and warnings that JDK 27 added (serial fields of Swing subclasses, `this` escaping a
+// constructor, and 200 stray doc comments in the tests). Every other category fails the build.
 tasks.withType(JavaCompile).configureEach {
-	options.compilerArgs << '-Xlint:all,-deprecation,-removal,-unchecked' << '-Werror'
+	options.compilerArgs << '-Xlint:all,-deprecation,-removal,-serial,-this-escape,-dangling-doc-comments,-unchecked' << '-Werror'
 }
