@@ -67,9 +67,23 @@ tasks.withType(JavaCompile).configureEach {
 	options.compilerArgs << '-Xlint:all,-deprecation,-removal,-serial,-this-escape,-dangling-doc-comments,-unchecked' << '-Werror'
 }
 
-// The scheduler's continuations need the Tascalate agent to instrument the node classes (ADR 0001).
-tasks.withType(Test).configureEach {
+// The scheduler's continuations need the Tascalate agent to instrument the node classes (ADR 0001). The agent slows
+// the timing-sensitive profiler tests, so only the tests that need it run with it, in their own task.
+def agentPackages = ['**/scheduler/**', '**/child/**']
+
+tasks.named('test') {
+	exclude agentPackages
+}
+
+tasks.register('agentTest', Test) {
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	include agentPackages
 	doFirst {
 		jvmArgs "-javaagent:${configurations.javaflowAgent.singleFile}"
 	}
+}
+
+tasks.named('check') {
+	dependsOn 'agentTest'
 }

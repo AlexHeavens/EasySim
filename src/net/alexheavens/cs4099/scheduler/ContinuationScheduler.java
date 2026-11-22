@@ -52,10 +52,12 @@ public final class ContinuationScheduler implements AutoCloseable {
 			worker.interrupt();
 	}
 
-	/** Safe point: ends the node if it was killed, and yields the worker once the time slice is used up. */
+	/** Safe point: does nothing off a scheduler worker. Otherwise ends the node if it was killed, and yields the worker once the time slice is used up. */
 	@continuable
 	public static void tick() {
 		Task task = CURRENT.get();
+		if (task == null)
+			return;
 		task.throwIfKilled();
 		if (++task.ticks >= task.scheduler.sliceTicks) {
 			task.ticks = 0;
