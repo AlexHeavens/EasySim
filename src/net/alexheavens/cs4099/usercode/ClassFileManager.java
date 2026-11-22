@@ -31,10 +31,9 @@ public class ClassFileManager extends
 									throws ClassNotFoundException {
 								if (classObject == null)
 									return null;
-								final byte[] classBytes = classObject
-										.getBytes();
-								return super.defineClass(name,
-										classObject.getBytes(), 0,
+								final byte[] classBytes = NodeInstrumenter
+										.instrument(classObject.getBytes());
+								return super.defineClass(name, classBytes, 0,
 										classBytes.length);
 							}
 						};

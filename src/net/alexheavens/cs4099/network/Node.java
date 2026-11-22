@@ -12,6 +12,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import net.alexheavens.cs4099.concurrent.WaitRegistrar;
 import net.alexheavens.cs4099.simulation.ColourChangeEvent;
 import net.alexheavens.cs4099.simulation.ISimulationEvent;
+import net.alexheavens.cs4099.usercode.KillableThread;
 import net.alexheavens.cs4099.simulation.InvalidCallException;
 import net.alexheavens.cs4099.simulation.MessageReadEvent;
 import net.alexheavens.cs4099.simulation.MessageSentEvent;
@@ -295,8 +296,7 @@ public class Node extends Observable implements INodeImpl, Runnable {
 		try {
 			this.waitRegistrar = registrar;
 			this.profiler = testProfiler;
-			nodeThread = new Thread(this);
-			nodeThread.setDaemon(true);
+			nodeThread = new KillableThread(this);
 			nodeThread.start();
 		} finally {
 			lock.unlock();
@@ -582,10 +582,10 @@ public class Node extends Observable implements INodeImpl, Runnable {
 					}
 				}
 			}.start();
-			// Thread.stop() no longer exists (removed in JDK 20): interrupt instead. A node that never checks
-			// for interruption keeps running, so the thread is a daemon and cannot keep the JVM alive, and the
-			// node is ended here instead of by the thread's own cleanup, which a busy loop never reaches.
-			nodeThread.interrupt();
+			// Thread.stop() no longer exists (removed in JDK 20). The kill makes the safe points in the user's
+			// code throw, which ends the thread. The node is also ended here, so a thread stuck somewhere
+			// without a safe point (a native call) cannot hold up the simulation; it is a daemon.
+			((KillableThread) nodeThread).kill();
 			setSimulationState(SimulationState.POST_SIMULATION);
 		} finally {
 			lock.unlock();
