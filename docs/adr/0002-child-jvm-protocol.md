@@ -1,6 +1,6 @@
 # 2. Split a node into a simulator side and a child-JVM side
 
-Date: 2026-11-22. Status: proposed. Builds on [ADR 1](0001-shared-child-jvm-with-continuation-scheduler.md).
+Date: 2026-11-22. Status: accepted (Alex, 2026-11-22). Builds on [ADR 1](0001-shared-child-jvm-with-continuation-scheduler.md).
 
 ## Context
 
@@ -45,9 +45,14 @@ Each step is its own PR with tests. Nothing changes behaviour until the last ste
 4. Move `Node` onto `ChildJvm` behind a flag, and run the existing simulation tests in both modes.
 5. Make the child JVM the default and delete the in-process thread path.
 
+## Decisions (Alex, 2026-11-22)
+
+- **Message payloads are primitives only:** a length-limited string, a number, or an enum. The codec rejects anything else, and the string limit is a named constant. Student-defined message classes are not supported.
+- **Replay of a failed run is approved**, with the failed node pre-failed. It is built only once node behaviour is deterministic, meaning the cause of non-determinism (`Random`, timing) is removed or seeded. Until then a failed run is reported, not replayed.
+- **Instrumentation comes next.** Once this ADR merges, prove that the Tascalate agent instruments student classes compiled by `ClassFileManager`, before step 2 builds on it.
+
 ## Open questions
 
-- **Message payloads.** Unverified: which `IMessage` content types students can send. `StringMessage` and `NumericMessage` are plain values. A student-defined message class would need serialisation, and the child must load that class on both sides. Proposal: allow only plain values at first.
-- **Determinism.** Replaying a run with one node pre-failed (deferred in ADR 1) needs identical node behaviour. Students can use `Random` and timing. Not decided.
-- **Instrumentation of student classes.** Unverified: how the Tascalate agent instruments classes that `ClassFileManager` compiles in memory. Step 2 must prove this before step 4.
+- **Instrumentation of student classes.** Unverified: how the Tascalate agent instruments classes that `ClassFileManager` compiles in memory.
+- **Determinism.** How to remove or seed `Random` and timing for replay. Not designed yet.
 - **Child JVM flags.** Memory cap and agent path are not chosen.
