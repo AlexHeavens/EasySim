@@ -340,6 +340,27 @@ public class NodeTest {
 		}
 	}
 
+	@Test(timeout = 10000)
+	/**
+	 * A node that ignores the interrupt must not block its halt, or one hung node freezes the whole simulation.
+	 */
+	public void testHaltHungNodeReturns() throws Exception {
+		MockHungNode hungNode = new MockHungNode(0);
+		hungNode.simulate(leaderBarrier, simProfiler);
+		while (hungNode.getSimulationState() != SimulationState.SIMULATING) {
+		}
+
+		Thread halter = new Thread(hungNode::halt);
+		halter.setDaemon(true);
+		halter.start();
+		try {
+			halter.join(5000);
+			assertFalse("halt() must return for a node that will not stop", halter.isAlive());
+		} finally {
+			hungNode.release();
+		}
+	}
+
 	@Test
 	/**
 	 * Tests that <code>getNeighbour(int)</code> correctly returns a unique

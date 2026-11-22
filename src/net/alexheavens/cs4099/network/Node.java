@@ -39,7 +39,10 @@ public class Node extends Observable implements INodeImpl, Runnable {
 	private static final Logger LOGGER = Logger.getLogger(Node.class.getName());
 
 	/** How long a killed node may keep running before it is reported as abandoned. */
-	private static final Duration KILL_GRACE = Duration.ofSeconds(5);
+	/** How long halt() waits beyond the grace period for the watchdog's report before it gives up on the node. */
+	private static final Duration HALT_MARGIN = Duration.ofMillis(500);
+
+	private static final Duration DEFAULT_KILL_GRACE = Duration.ofSeconds(5);
 
 	private ReentrantLock lock;
 	private Condition blocked, completed;
@@ -373,9 +376,18 @@ public class Node extends Observable implements INodeImpl, Runnable {
 				return;
 
 			setSimulationState(SimulationState.HALTED);
-			nodeThread.interrupt();
-			while (simState != SimulationState.POST_SIMULATION)
-				completed.await();
+			// A node that ignores the interrupt must not hold up the simulation: end it as abandoned once the
+			// grace period passes, as kill() does.
+			final Duration grace = killGrace();
+			((KillableThread) nodeThread).kill(grace, this::reportAbandoned);
+			long remaining = grace.toNanos() + HALT_MARGIN.toNanos();
+			while (simState != SimulationState.POST_SIMULATION) {
+				if (remaining <= 0) {
+					setSimulationState(SimulationState.POST_SIMULATION);
+					break;
+				}
+				remaining = completed.awaitNanos(remaining);
+			}
 
 		} catch (InterruptedException e) {
 			throw new IllegalStateException();
@@ -571,6 +583,15 @@ public class Node extends Observable implements INodeImpl, Runnable {
 		}
 	}
 
+	/** How long a killed or halted node may keep running before it is reported as abandoned. */
+	protected Duration killGrace() {
+		return DEFAULT_KILL_GRACE;
+	}
+
+	private void reportAbandoned() {
+		LOGGER.warning("Node " + this + " did not stop after being killed and was abandoned.");
+	}
+
 	@Override
 	public void kill() {
 
@@ -593,8 +614,7 @@ public class Node extends Observable implements INodeImpl, Runnable {
 			// code throw, which ends the thread. The node is also ended here, so a thread stuck somewhere
 			// without a safe point (a native call) cannot hold up the simulation; it is a daemon, and the
 			// watchdog reports it if it is still running after the grace period.
-			((KillableThread) nodeThread).kill(KILL_GRACE, () -> LOGGER.warning(
-					"Node " + this + " did not stop after being killed and was abandoned."));
+			((KillableThread) nodeThread).kill(killGrace(), this::reportAbandoned);
 			setSimulationState(SimulationState.POST_SIMULATION);
 		} finally {
 			lock.unlock();
