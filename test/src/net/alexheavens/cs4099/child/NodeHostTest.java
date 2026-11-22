@@ -159,4 +159,26 @@ public class NodeHostTest {
 		List<Frame> frames = serve(new Frame.Start(6, "BadData", false, 1));
 		assertTrue(((Frame.Ended) frames.get(0)).failure().startsWith("java.lang.IllegalArgumentException"));
 	}
+
+	@Test(timeout = 30000)
+	public void testKillEndsSpinningStudentNodeWithoutBlockingOthers() throws Exception {
+		source("Spinner", "while (true) { }");
+		source("Quick", "setColour(java.awt.Color.BLUE);");
+		// More spinners than workers: the quick node still runs because spinners yield at their safe points.
+		for (int i = 0; i < 4; i++)
+			FrameCodec.write(toHost, new Frame.Start(10 + i, "Spinner", false, 1));
+		FrameCodec.write(toHost, new Frame.Start(20, "Quick", false, 1));
+		Frame.SetColour colour = (Frame.SetColour) FrameCodec.read(fromHost);
+		assertEquals(20, colour.node());
+		FrameCodec.write(toHost, new Frame.Accepted(20, colour.request()));
+		assertEquals(new Frame.Ended(20, null), FrameCodec.read(fromHost));
+		for (int i = 0; i < 4; i++)
+			FrameCodec.write(toHost, new Frame.Kill(10 + i));
+		List<Frame> ended = new ArrayList<>();
+		for (int i = 0; i < 4; i++)
+			ended.add(FrameCodec.read(fromHost));
+		for (Frame frame : ended)
+			assertNull(((Frame.Ended) frame).failure());
+		assertEquals(4, ended.size());
+	}
 }

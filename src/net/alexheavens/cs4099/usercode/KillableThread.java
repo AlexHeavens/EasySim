@@ -2,6 +2,10 @@ package net.alexheavens.cs4099.usercode;
 
 import java.time.Duration;
 
+import org.apache.commons.javaflow.api.continuable;
+
+import net.alexheavens.cs4099.scheduler.ContinuationScheduler;
+
 /**
  * The thread a node runs on. Killing it marks it, interrupts any blocking call, and the next safe point that
  * {@link NodeInstrumenter} added to the user's code throws {@link NodeKilledError}, ending the thread even in a
@@ -52,9 +56,17 @@ public class KillableThread extends Thread {
 			onAbandoned.run();
 	}
 
-	/** Called from the safe points in user code. */
+	/**
+	 * Called from the safe points in user code. On a node thread it ends a killed node; on a scheduler worker it
+	 * ends a killed node and yields the worker after the time slice.
+	 */
+	@continuable
 	public static void check() {
-		if (Thread.currentThread() instanceof KillableThread t && t.killed)
-			throw new NodeKilledError();
+		if (Thread.currentThread() instanceof KillableThread t) {
+			if (t.killed)
+				throw new NodeKilledError();
+		} else {
+			ContinuationScheduler.tick();
+		}
 	}
 }
