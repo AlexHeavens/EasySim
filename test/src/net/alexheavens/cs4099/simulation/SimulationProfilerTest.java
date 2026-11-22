@@ -1,6 +1,7 @@
 package net.alexheavens.cs4099.simulation;
 
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -59,6 +60,52 @@ public class SimulationProfilerTest {
 		loopNode.simulate(testBarrier, testProfiler);
 		while (loopNode.getSimulationState() != SimulationState.POST_SIMULATION) {
 		}
+	}
+
+	@Test(timeout = 2 * EXPECTED_COMPUTATION_TIME_MS)
+	/**
+	 * A node that blocks in its own code uses no CPU time, so the CPU timeout never reaches it. It must still be
+	 * killed once it has been blocked for the timeout.
+	 */
+	public void testTrackBlockedNode() {
+		testProfiler = new SimulationProfiler(N_NODES, NODE_TIMEOUT);
+		final CountDownLatch never = new CountDownLatch(1);
+		loopNode = new MockUserNode(0) {
+			@Override
+			public void execute() {
+				while (true) {
+					try {
+						never.await();
+					} catch (InterruptedException e) {
+						// ignored, as stuck student code would
+					}
+				}
+			}
+		};
+		loopNode.simulate(testBarrier, testProfiler);
+		while (loopNode.getSimulationState() != SimulationState.POST_SIMULATION) {
+		}
+	}
+
+	@Test
+	/**
+	 * A node that blocks for less than the timeout and then finishes is not killed.
+	 */
+	public void testBriefBlockIsNotKilled() throws InterruptedException {
+		testProfiler = new SimulationProfiler(N_NODES, NODE_TIMEOUT);
+		loopNode = new MockUserNode(0) {
+			@Override
+			public void execute() {
+				try {
+					Thread.sleep(NODE_TIMEOUT / 1000000 / 5);
+				} catch (InterruptedException e) {
+					throw new IllegalStateException(e);
+				}
+			}
+		};
+		loopNode.simulate(testBarrier, testProfiler);
+		Thread.sleep(EXPECTED_COMPUTATION_TIME_MS);
+		assertEquals(SimulationState.COMPLETED, loopNode.getSimulationState());
 	}
 
 	@Test
