@@ -1,0 +1,9 @@
+EasySim bundles or depends on the following third-party software.
+
+Tascalate JavaFlow (continuations library and agent), Apache License 2.0
+  https://github.com/vsilaev/tascalate-javaflow
+
+ASM (bundled in the Tascalate agent as net.tascalate.asmx), BSD 3-Clause
+SLF4J (bundled in the Tascalate agent), MIT
+
+Licence texts for ASM and SLF4J are unverified; confirm upstream before release.
