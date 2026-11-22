@@ -37,6 +37,8 @@ public abstract class MessageImpl<DataType> implements IMessageImpl<DataType>,
 	 * @param data
 	 *            the data stored.
 	 */
+	private Integer receivedFromIndex;
+
 	public MessageImpl(DataType data) {
 		if (data == null)
 			throw new IllegalArgumentException(
@@ -160,7 +162,14 @@ public abstract class MessageImpl<DataType> implements IMessageImpl<DataType>,
 			return 0;
 	}
 
+	/** Sets the index of the sender for a message rebuilt in the child JVM, where there are no node objects. */
+	public void setSourceIndex(int index) {
+		receivedFromIndex = index;
+	}
+
 	public int sourceIndex() {
+		if (receivedFromIndex != null)
+			return receivedFromIndex;
 		return targetNode.getIndex(sourceNode);
 	}
 
