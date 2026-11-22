@@ -27,6 +27,8 @@ public class SimulationProfiler {
 	private final long timeout;
 	private final TimerTask sweepProcessesTask;
 	private final Map<ProfiledProcess, Long> startTimes = new ConcurrentHashMap<ProfiledProcess, Long>();
+	// When each tracked process was first seen blocked (not runnable), on the System.nanoTime clock.
+	private final Map<ProfiledProcess, Long> blockedSince = new ConcurrentHashMap<ProfiledProcess, Long>();
 	protected final Map<Integer, Map<Long, Long>> processSimTimes;
 	protected final ThreadMXBean threadInterface = ManagementFactory
 			.getThreadMXBean();
@@ -152,6 +154,7 @@ public class SimulationProfiler {
 				.get(timestep) : 0l;
 		timestepMap.put(timestep, previousTime + simTime);
 		startTimes.remove(process);
+		blockedSince.remove(process);
 	}
 
 	/**
@@ -162,17 +165,35 @@ public class SimulationProfiler {
 		return processSimTimes;
 	}
 
+	/**
+	 * Kills a tracked node that has used more CPU time than the timeout, or that has been blocked for the timeout.
+	 * A blocked node (a lock, a wait, a sleep in its own code) uses no CPU, so the CPU limit never reaches it.
+	 * Only a blocked thread state counts, never elapsed wall time, so a node starved of CPU on a loaded machine
+	 * is not killed.
+	 */
 	private synchronized void killUnresponsiveNodes() {
+		final long now = System.nanoTime();
 		final Iterator<ProfiledProcess> nodes = startTimes.keySet().iterator();
 		while (nodes.hasNext()) {
 			final ProfiledProcess node = nodes.next();
 			long currentTime = threadInterface.getThreadCpuTime(node
 					.getThread().getId());
 
-			if (currentTime - startTimes.get(node) > timeout) {
+			if (currentTime - startTimes.get(node) > timeout || blockedFor(node, now) > timeout) {
 				node.kill();
 				nodes.remove();
+				blockedSince.remove(node);
 			}
 		}
+	}
+
+	/** How long the node's thread has been continuously blocked, as of the sweep at now. */
+	private long blockedFor(ProfiledProcess node, long now) {
+		final Thread.State state = node.getThread().getState();
+		if (state == Thread.State.RUNNABLE || state == Thread.State.NEW || state == Thread.State.TERMINATED) {
+			blockedSince.remove(node);
+			return 0;
+		}
+		return now - blockedSince.computeIfAbsent(node, n -> now);
 	}
 }
