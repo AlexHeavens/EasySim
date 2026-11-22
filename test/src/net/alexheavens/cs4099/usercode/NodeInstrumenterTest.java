@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 
 import org.junit.Test;
 
@@ -31,7 +32,7 @@ public class NodeInstrumenterTest {
 
 	private void assertKilled(Thread thread) throws InterruptedException {
 		assertTrue("the node should be running before the kill", thread.isAlive());
-		((KillableThread) thread).kill();
+		((KillableThread) thread).kill(Duration.ofSeconds(1), () -> {});
 		thread.join(KILL_WAIT_MS);
 		assertFalse("a killed node must end", thread.isAlive());
 	}
