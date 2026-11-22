@@ -12,7 +12,13 @@ java {
 	}
 }
 
+configurations {
+	javaflowAgent
+}
+
 dependencies {
+	implementation 'net.tascalate.javaflow:net.tascalate.javaflow.api:2.9.0'
+	javaflowAgent('net.tascalate.javaflow:net.tascalate.javaflow.agent.core:2.9.0:shaded') { transitive = false }
 	implementation 'net.sf.json-lib:json-lib:2.4:jdk15'
 	implementation 'org.prefuse:prefuse:beta-20071021'
 	implementation 'com.miglayout:miglayout-swing:11.4.2'
@@ -59,4 +65,11 @@ jar {
 // constructor, and 200 stray doc comments in the tests). Every other category fails the build.
 tasks.withType(JavaCompile).configureEach {
 	options.compilerArgs << '-Xlint:all,-deprecation,-removal,-serial,-this-escape,-dangling-doc-comments,-unchecked' << '-Werror'
+}
+
+// The scheduler's continuations need the Tascalate agent to instrument the node classes (ADR 0001).
+tasks.withType(Test).configureEach {
+	doFirst {
+		jvmArgs "-javaagent:${configurations.javaflowAgent.singleFile}"
+	}
 }

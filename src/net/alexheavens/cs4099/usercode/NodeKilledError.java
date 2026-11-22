@@ -9,7 +9,7 @@ public class NodeKilledError extends Error {
 
 	private static final long serialVersionUID = 1L;
 
-	NodeKilledError() {
+	public NodeKilledError() {
 		super("Node killed.", null, false, false);
 	}
 }
