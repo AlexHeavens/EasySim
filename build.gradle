@@ -21,7 +21,7 @@ dependencies {
 	javaflowAgent('net.tascalate.javaflow:net.tascalate.javaflow.agent.core:2.9.0:shaded') { transitive = false }
 	implementation 'net.sf.json-lib:json-lib:2.4:jdk15'
 	implementation 'org.prefuse:prefuse:beta-20071021'
-	implementation 'com.miglayout:miglayout-swing:11.4.2'
+	implementation 'com.miglayout:miglayout-swing:11.5.2'
 	testImplementation 'junit:junit:4.13.2'
 }
 
