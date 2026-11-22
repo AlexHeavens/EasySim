@@ -53,6 +53,6 @@ Each step is its own PR with tests. Nothing changes behaviour until the last ste
 
 ## Open questions
 
-- **Instrumentation of student classes.** Unverified: how the Tascalate agent instruments classes that `ClassFileManager` compiles in memory.
+- **Instrumentation of student classes: verified 2026-11-22.** The Tascalate agent instruments classes that `ClassFileManager` defines in memory, but only methods marked `@continuable`. Unmarked student code ran past `park()` without suspending. `NodeInstrumenter` now marks every student method, and `StudentClassInstrumentationTest` covers it. Still unverified: yielding inside `synchronized`, and the run-time cost of instrumenting every method.
 - **Determinism.** How to remove or seed `Random` and timing for replay. Not designed yet.
 - **Child JVM flags.** Memory cap and agent path are not chosen.

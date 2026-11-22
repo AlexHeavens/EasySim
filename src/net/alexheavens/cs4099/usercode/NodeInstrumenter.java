@@ -9,7 +9,9 @@ import java.lang.classfile.CodeElement;
 import java.lang.classfile.CodeModel;
 import java.lang.classfile.CodeTransform;
 import java.lang.classfile.Label;
+import java.lang.classfile.Annotation;
 import java.lang.classfile.MethodTransform;
+import java.lang.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
 import java.lang.classfile.instruction.BranchInstruction;
 import java.lang.classfile.instruction.ExceptionCatch;
 import java.lang.classfile.instruction.LabelTarget;
@@ -24,12 +26,16 @@ import java.util.Set;
  * backward branch) and at the start of every exception handler of compiled user code, so a killed node cannot run
  * on in a loop or a recursion that never blocks. The check at a loop head can sit inside a <code>try</code> whose
  * handler swallows the {@link NodeKilledError}; the check at the handler's start throws it again from outside that
- * <code>try</code>, so the error leaves one level per handler. Without it a thread cannot be stopped from outside on JDK 20 and later.
+ * <code>try</code>, so the error leaves one level per handler. It also marks every method <code>@continuable</code>, so the Tascalate
+ * agent lets the scheduler suspend a node from anywhere in its code. Without the check a thread cannot be stopped from outside on JDK 20 and later.
  */
 public final class NodeInstrumenter {
 
 	private static final ClassDesc KILLABLE = ClassDesc.of(KillableThread.class.getName());
 	private static final MethodTypeDesc CHECK = MethodTypeDesc.of(ConstantDescs.CD_void);
+
+	/** Marks a method for the Tascalate agent, so the node can suspend inside it (ADR 0001). */
+	private static final ClassDesc CONTINUABLE = ClassDesc.of("org.apache.commons.javaflow.api.continuable");
 
 	private NodeInstrumenter() {
 	}
@@ -39,10 +45,12 @@ public final class NodeInstrumenter {
 				.defaultResolver().orElse(ClassHierarchyResolver.ofClassLoading(NodeInstrumenter.class.getClassLoader()))));
 		ClassModel model = cf.parse(classBytes);
 		MethodTransform methods = (builder, element) -> {
-			if (element instanceof CodeModel code)
+			if (element instanceof CodeModel code) {
+				builder.with(RuntimeInvisibleAnnotationsAttribute.of(Annotation.of(CONTINUABLE)));
 				builder.transformCode(code, safePoints(code));
-			else
+			} else if (!(element instanceof RuntimeInvisibleAnnotationsAttribute)) {
 				builder.with(element);
+			}
 		};
 		return cf.transformClass(model, ClassTransform.transformingMethods(methods));
 	}
