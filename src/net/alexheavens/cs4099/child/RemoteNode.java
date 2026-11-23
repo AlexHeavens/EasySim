@@ -16,6 +16,7 @@ import net.alexheavens.cs4099.network.MessageImpl;
 import net.alexheavens.cs4099.network.NumericMessage;
 import net.alexheavens.cs4099.network.StringMessage;
 import net.alexheavens.cs4099.scheduler.ContinuationScheduler;
+import net.alexheavens.cs4099.simulation.InvalidCallException;
 
 /**
  * The node API a student script sees inside the child JVM. Each call becomes a request frame, and the node parks on
@@ -33,6 +34,7 @@ final class RemoteNode implements INode {
 	private final int neighbourIndex;
 	private volatile ContinuationScheduler.Task task;
 	private volatile int[] neighbours;
+	private volatile boolean settingUp = true;
 
 	/** Where request frames go. */
 	interface FrameSink {
@@ -59,6 +61,16 @@ final class RemoteNode implements INode {
 		this.sink = null;
 		this.requestIds = null;
 		this.neighbourIndex = neighbourIndex;
+	}
+
+	/** Called when the script's setup method returns: from here on the node may send, receive and pause. */
+	void endSetup() {
+		settingUp = false;
+	}
+
+	private void requireSimulating(String call) {
+		if (settingUp)
+			throw new InvalidCallException("Called " + call + " from setup.");
 	}
 
 	void bind(ContinuationScheduler.Task task) {
@@ -89,12 +101,14 @@ final class RemoteNode implements INode {
 	@Override
 	@continuable
 	public void pause(long pauseSteps) {
+		requireSimulating("pause");
 		call(r -> new Frame.Pause(id, r, pauseSteps));
 	}
 
 	@Override
 	@continuable
 	public void send(INode recipient, IMessage<?> message) {
+		requireSimulating("send");
 		int index = ((RemoteNode) recipient).neighbourIndex;
 		Message wire = toWire(message);
 		call(r -> new Frame.Send(id, r, index, wire));
@@ -103,6 +117,7 @@ final class RemoteNode implements INode {
 	@Override
 	@continuable
 	public void sendAll(IMessage<?> message) {
+		requireSimulating("sendAll");
 		Message wire = toWire(message);
 		call(r -> new Frame.SendAll(id, r, wire));
 	}
@@ -111,6 +126,7 @@ final class RemoteNode implements INode {
 	@continuable
 	@SuppressWarnings("unchecked")
 	public <MsgType extends IMessage<?>> MsgType receive() {
+		requireSimulating("receive");
 		return (MsgType) fromWire((Frame.Received) call(r -> new Frame.Receive(id, r, Frame.Receive.ANY_NEIGHBOUR)));
 	}
 
@@ -118,6 +134,7 @@ final class RemoteNode implements INode {
 	@continuable
 	@SuppressWarnings("unchecked")
 	public <MsgType extends IMessage<?>> MsgType receive(INode neighbour) {
+		requireSimulating("receive");
 		int index = ((RemoteNode) neighbour).neighbourIndex;
 		return (MsgType) fromWire((Frame.Received) call(r -> new Frame.Receive(id, r, index)));
 	}
@@ -133,6 +150,7 @@ final class RemoteNode implements INode {
 	@Override
 	@continuable
 	public void setColour(Color colour) {
+		requireSimulating("setColour");
 		call(r -> new Frame.SetColour(id, r, colour.getRGB()));
 	}
 
