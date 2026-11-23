@@ -36,7 +36,7 @@ public class ChildJvmTest {
 	@Before
 	public void setUp() throws Exception {
 		ChildJvm.Config config = new ChildJvm.Config(Path.of(System.getProperty("javaflow.agent")),
-				folder.getRoot().toPath(), "256m", 2, 1000, Duration.ofSeconds(2), Duration.ofSeconds(60));
+				folder.getRoot().toPath(), 256, 2, 1000, Duration.ofSeconds(2), Duration.ofSeconds(300));
 		child = new ChildJvm(config, failed::set);
 	}
 
