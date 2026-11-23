@@ -72,10 +72,9 @@ public final class NodeHost {
 	private void start(Frame.Start start) {
 		RemoteNode remote = new RemoteNode(start.node(), start.initiator(), start.machineId(), this::write,
 				requestIds);
-		NodeScript script = scripts.apply(start.scriptClass());
-		script.setNode(remote);
 		nodes.put(start.node(), remote);
-		ContinuationScheduler.Task task = scheduler.start(new NodeBody(script));
+		// The script is loaded inside the node's own task, so compiling it never delays reading a Kill.
+		ContinuationScheduler.Task task = scheduler.start(new NodeBody(scripts, start.scriptClass(), remote));
 		remote.bind(task);
 		tasks.put(start.node(), task);
 		task.completion().whenComplete((ignored, failure) -> {
@@ -100,11 +99,15 @@ public final class NodeHost {
 		}
 	}
 
-	private record NodeBody(NodeScript script) implements Runnable {
+	private record NodeBody(Function<String, NodeScript> scripts, String scriptClass, RemoteNode remote)
+			implements Runnable {
 		@Override
 		@continuable
 		public void run() {
+			NodeScript script = scripts.apply(scriptClass);
+			script.setNode(remote);
 			script.setup();
+			remote.endSetup();
 			script.execute();
 		}
 	}

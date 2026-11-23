@@ -1,6 +1,7 @@
 package net.alexheavens.cs4099.child;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -180,5 +181,31 @@ public class NodeHostTest {
 		for (Frame frame : ended)
 			assertNull(((Frame.Ended) frame).failure());
 		assertEquals(4, ended.size());
+	}
+
+	@Test(timeout = 30000)
+	public void testScriptThatCannotBeLoadedEndsOnlyThatNode() throws Exception {
+		FrameCodec.write(toHost, new Frame.Start(30, "Missing", false, 1));
+		Frame.Ended ended = (Frame.Ended) FrameCodec.read(fromHost);
+		assertEquals(30, ended.node());
+		assertNotNull(ended.failure());
+		source("Quick2", "setColour(java.awt.Color.BLUE);");
+		FrameCodec.write(toHost, new Frame.Start(31, "Quick2", false, 1));
+		assertTrue(FrameCodec.read(fromHost) instanceof Frame.SetColour);
+	}
+
+	@Test(timeout = 30000)
+	public void testSendFromSetupFailsTheNode() throws Exception {
+		Files.writeString(new File(folder.getRoot(), "EarlySend.java").toPath(), """
+				import net.alexheavens.cs4099.network.*;
+				public class EarlySend extends net.alexheavens.cs4099.usercode.NodeScript {
+					public void setup() { sendAll(new StringMessage("T", "x")); }
+					public void execute() { }
+				}
+				""");
+		List<Frame> frames = serve(new Frame.Start(32, "EarlySend", false, 1));
+		assertEquals(1, frames.size());
+		assertEquals("net.alexheavens.cs4099.simulation.InvalidCallException: Called sendAll from setup.",
+				((Frame.Ended) frames.get(0)).failure());
 	}
 }
