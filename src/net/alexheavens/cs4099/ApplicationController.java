@@ -4,7 +4,9 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Path;
 
+import net.alexheavens.cs4099.child.ChildNodes;
 import net.alexheavens.cs4099.network.Network;
 import net.alexheavens.cs4099.network.configuration.INetworkConfig;
 import net.alexheavens.cs4099.network.configuration.NetworkConfig;
@@ -91,6 +93,21 @@ public class ApplicationController {
 	public void simulate(INetworkConfig net, long length,
 			Class<? extends NodeScript> userCode, ClassLimitation limitation,
 			File output, long timeout, boolean scrambleIds) {
+		simulate(net, length, userCode, null, limitation, output, timeout,
+				scrambleIds);
+	}
+
+	/**
+	 * As {@link #simulate(INetworkConfig, long, Class, ClassLimitation, File, long, boolean)}.
+	 * If nodes run in a child JVM, the child compiles <code>userCode</code> from <code>scriptDir</code>.
+	 * 
+	 * @param scriptDir
+	 *            the folder holding the source of <code>userCode</code>, or null if it is on the classpath.
+	 */
+	private void simulate(INetworkConfig net, long length,
+			Class<? extends NodeScript> userCode, Path scriptDir,
+			ClassLimitation limitation, File output, long timeout,
+			boolean scrambleIds) {
 
 		boolean completed = false;
 		boolean isNewFile = false;
@@ -102,11 +119,16 @@ public class ApplicationController {
 
 			isNewFile = output.createNewFile();
 
-			Network simNetwork = new Network(userCode, net, scrambleIds);
+			final SimulationResults results;
+			try (ChildNodes childNodes = ChildNodes.ifEnabled(scriptDir)) {
+				Network simNetwork = (childNodes == null) ? new Network(
+						userCode, net, scrambleIds) : new Network(childNodes,
+						userCode.getName(), net, scrambleIds);
 
-			SimulationRunner simRunner = new SimulationRunner(simNetwork,
-					length, net.generateDeathEvents(), timeout);
-			final SimulationResults results = simRunner.simulate();
+				SimulationRunner simRunner = new SimulationRunner(simNetwork,
+						length, net.generateDeathEvents(), timeout);
+				results = simRunner.simulate();
+			}
 			JSONObject resultsJson = results.getEvents().toJSONObject();
 			resultsJson.element("network", net.toJSONObject());
 			resultsJson.element("length", length);
@@ -187,7 +209,8 @@ public class ApplicationController {
 			// Construct the network configuration.
 			NetworkConfig net = new NetworkConfig(netFile);
 
-			simulate(net, length, userNodeClass, limitation, output, timeout,
+			simulate(net, length, userNodeClass, userCode.getAbsoluteFile()
+					.getParentFile().toPath(), limitation, output, timeout,
 					scrambleIds);
 		} catch (IOException e) {
 			model.setSimulationException(e);

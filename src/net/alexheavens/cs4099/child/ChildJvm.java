@@ -39,7 +39,7 @@ public final class ChildJvm implements AutoCloseable {
 	 * How to start the child.
 	 *
 	 * @param agent       the Tascalate agent jar
-	 * @param scriptDir   the directory holding the student sources
+	 * @param scriptDir   the directory holding the student sources, or null if scripts are classes on the classpath
 	 * @param maxHeap     the child's heap cap, as the {@code -Xmx} value, for example {@code 512m}
 	 * @param workers     scheduler worker threads
 	 * @param sliceTicks  safe points a node runs before it yields its worker
@@ -71,6 +71,7 @@ public final class ChildJvm implements AutoCloseable {
 	private static final class Node {
 		final Consumer<Frame> inbox;
 		volatile boolean ended;
+		volatile boolean killRequested;
 
 		Node(Consumer<Frame> inbox) {
 			this.inbox = inbox;
@@ -114,7 +115,7 @@ public final class ChildJvm implements AutoCloseable {
 		command.add(Integer.toString(port));
 		command.add(Integer.toString(config.workers()));
 		command.add(Integer.toString(config.sliceTicks()));
-		command.add(config.scriptDir().toString());
+		command.add(config.scriptDir() == null ? ChildMain.NO_SCRIPT_DIR : config.scriptDir().toString());
 		return command;
 	}
 
@@ -144,12 +145,22 @@ public final class ChildJvm implements AutoCloseable {
 		Node target = nodes.get(node);
 		if (target == null || target.ended)
 			return;
+		target.killRequested = true;
 		send(new Frame.Kill(node));
 		timers.schedule(() -> {
 			if (!target.ended)
 				fail(new Failure(node, "Node " + node + " did not stop within " + config.killGrace().toMillis()
 						+ " ms of being killed. The child JVM was killed."));
 		}, config.killGrace().toMillis(), TimeUnit.MILLISECONDS);
+	}
+
+	/**
+	 * Waits until every node that was asked to stop has ended, or the run has failed. The grace period bounds the
+	 * wait, so after this a node that could not be stopped is in {@link #failure()}.
+	 */
+	public void awaitKills() throws InterruptedException {
+		while (failure == null && nodes.values().stream().anyMatch(n -> n.killRequested && !n.ended))
+			Thread.sleep(10);
 	}
 
 	/** The failure that ended the run, or null while it has not failed. */

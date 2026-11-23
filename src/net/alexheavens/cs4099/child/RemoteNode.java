@@ -8,13 +8,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.javaflow.api.continuable;
 
 import net.alexheavens.cs4099.child.Frame.Message;
-import net.alexheavens.cs4099.child.Frame.Payload;
 import net.alexheavens.cs4099.network.ILink;
 import net.alexheavens.cs4099.network.IMessage;
 import net.alexheavens.cs4099.network.INode;
-import net.alexheavens.cs4099.network.MessageImpl;
-import net.alexheavens.cs4099.network.NumericMessage;
-import net.alexheavens.cs4099.network.StringMessage;
 import net.alexheavens.cs4099.scheduler.ContinuationScheduler;
 import net.alexheavens.cs4099.simulation.InvalidCallException;
 
@@ -175,30 +171,11 @@ final class RemoteNode implements INode {
 	}
 
 	private static Message toWire(IMessage<?> message) {
-		Object data = message.getData();
-		Payload payload;
-		if (data instanceof String text)
-			payload = new Payload.Text(text);
-		else if (data instanceof Long || data instanceof Integer || data instanceof Short || data instanceof Byte)
-			payload = new Payload.Whole(((Number) data).longValue());
-		else if (data instanceof Double || data instanceof Float)
-			payload = new Payload.Fractional(((Number) data).doubleValue());
-		else
-			throw new IllegalArgumentException("Messages may carry only a string or a number, not "
-					+ (data == null ? "null" : data.getClass().getName()));
-		return new Message(message.getTag(), payload);
+		return Wire.toWire(message);
 	}
 
 	private static IMessage<?> fromWire(Frame.Received received) {
-		Message wire = received.message();
-		MessageImpl<?> message = switch (wire.data()) {
-		case Payload.Text p -> new StringMessage(wire.tag(), p.value());
-		case Payload.Whole p -> new NumericMessage(wire.tag(), p.value());
-		case Payload.Fractional p -> new NumericMessage(wire.tag(), p.value());
-		case Payload.Constant p -> throw new UnsupportedOperationException("Enum messages are not supported yet");
-		};
-		message.setSourceIndex(received.neighbour());
-		return message;
+		return Wire.fromWire(received.message(), received.neighbour());
 	}
 
 	// The rest of the API has no meaning inside the child.
