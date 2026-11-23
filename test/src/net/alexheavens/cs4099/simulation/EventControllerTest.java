@@ -6,6 +6,7 @@ import net.alexheavens.cs4099.network.IMessageImpl;
 import net.alexheavens.cs4099.network.MockMessage;
 import net.alexheavens.cs4099.network.MockSimObserver;
 import net.alexheavens.cs4099.network.MockUserNode;
+import net.alexheavens.cs4099.network.Node;
 import net.alexheavens.cs4099.network.Network;
 import net.alexheavens.cs4099.network.StringMessage;
 import net.alexheavens.cs4099.network.configuration.INetworkConfig;
@@ -38,7 +39,8 @@ public class EventControllerTest {
 		INetworkConfigFactory configFactory = new NetworkConfigFactory();
 		INetworkConfig testConfig = configFactory.createTreeNetwork(3, 5);
 		try {
-			testNet = new Network(MockNodeScript.class, testConfig, false);
+			testNet = new Network(testConfig, false,
+					initiator -> new Node(new MockNodeScript(), initiator));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

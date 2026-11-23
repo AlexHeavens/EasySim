@@ -99,7 +99,7 @@ public class ApplicationController {
 
 	/**
 	 * As {@link #simulate(INetworkConfig, long, Class, ClassLimitation, File, long, boolean)}.
-	 * If nodes run in a child JVM, the child compiles <code>userCode</code> from <code>scriptDir</code>.
+	 * The child JVM that runs the nodes compiles <code>userCode</code> from <code>scriptDir</code>.
 	 * 
 	 * @param scriptDir
 	 *            the folder holding the source of <code>userCode</code>, or null if it is on the classpath.
@@ -120,9 +120,8 @@ public class ApplicationController {
 			isNewFile = output.createNewFile();
 
 			final SimulationResults results;
-			try (ChildNodes childNodes = ChildNodes.ifEnabled(scriptDir)) {
-				Network simNetwork = (childNodes == null) ? new Network(
-						userCode, net, scrambleIds) : new Network(childNodes,
+			try (ChildNodes childNodes = ChildNodes.start(scriptDir)) {
+				Network simNetwork = new Network(childNodes,
 						userCode.getName(), net, scrambleIds);
 
 				SimulationRunner simRunner = new SimulationRunner(simNetwork,
@@ -143,10 +142,6 @@ public class ApplicationController {
 			model.resetException();
 
 		} catch (IOException e) {
-			model.setSimulationException(e);
-		} catch (InstantiationException e) {
-			model.setSimulationException(e);
-		} catch (IllegalAccessException e) {
 			model.setSimulationException(e);
 		} catch (LimitationFailureException e) {
 			model.setSimulationException(e);

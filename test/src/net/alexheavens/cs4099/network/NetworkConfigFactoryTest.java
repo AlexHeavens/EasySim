@@ -72,7 +72,7 @@ public class NetworkConfigFactoryTest {
 		// We can address links more easily as a Network.
 		Network tree = null;
 		try {
-			tree = new Network(treeCon, MockUserNode.class);
+			tree = new Network(treeCon, false, initiator -> new MockUserNode());
 		} catch (Exception e) {
 			fail("Exception drawing network from config: "
 					+ e.getLocalizedMessage());

@@ -109,21 +109,20 @@ public class TestSimulator {
 	 * Returns the simulation to timestep 0.
 	 */
 	public synchronized void reset() {
+		resetInner();
+	}
+
+	private NodeScript newScript() {
 		try {
-			resetInner();
-		} catch (InstantiationException e) {
-			throw new IllegalStateException(
-					"Could not re-instantiate already simulated class.");
-		} catch (IllegalAccessException e) {
-			throw new IllegalStateException(
-					"Could not access field in already simulated class.");
+			return scriptClass.getDeclaredConstructor().newInstance();
+		} catch (ReflectiveOperationException e) {
+			throw new IllegalStateException("Could not instantiate " + scriptClass, e);
 		}
 	}
 
-	private synchronized void resetInner() throws InstantiationException,
-			IllegalAccessException {
-		this.simRunner = new PausableSimulationRunner(new Network(scriptClass,
-				network, false), Long.MAX_VALUE, events);
+	private synchronized void resetInner() {
+		this.simRunner = new PausableSimulationRunner(new Network(network, false,
+				initiator -> new Node(newScript(), initiator)), Long.MAX_VALUE, events);
 
 		// Create a collection of the nodescript objects from the nodes in sim.
 		nodes = new HashSet<NodeScript>(network.nodeCount());

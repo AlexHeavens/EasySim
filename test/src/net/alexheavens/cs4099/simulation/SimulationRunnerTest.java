@@ -29,7 +29,7 @@ public class SimulationRunnerTest {
 	public void setup() throws InstantiationException, IllegalAccessException {
 		INetworkConfigFactory netFact = new NetworkConfigFactory();
 		treeConfig = netFact.createTreeNetwork(3, 5);
-		treeNet = new Network(treeConfig, MockUserNode.class);
+		treeNet = new Network(treeConfig, false, initiator -> new MockUserNode());
 		testSim = new MockSimulationRunner(treeNet, TEST_SIM_LENGTH);
 	}
 
@@ -289,7 +289,7 @@ public class SimulationRunnerTest {
 			IllegalAccessException {
 
 		// Create our simulation with some repeatedly pausing nodes.
-		treeNet = new Network(treeConfig, MockPauseNode.class);
+		treeNet = new Network(treeConfig, false, initiator -> new MockPauseNode());
 		testSim = new MockSimulationRunner(treeNet, TEST_SIM_LENGTH);
 
 		testSim.simulate();
@@ -315,7 +315,7 @@ public class SimulationRunnerTest {
 	@Test(timeout = 1000)
 	public void testStopNodes() {
 		try {
-			treeNet = new Network(treeConfig, MockPauseNode.class);
+			treeNet = new Network(treeConfig, false, initiator -> new MockPauseNode());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
