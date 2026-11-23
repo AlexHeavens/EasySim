@@ -48,8 +48,8 @@ We chose an existing library because the scheduler is not where EasySim differen
 ## Consequences and unverified risks
 
 - A node that blocks (sleep, lock, I/O) holds a worker. The blocked-thread timeout must kill it, or the scheduler must replace the worker.
-- Unverified: whether a yield inside `synchronized` works in the Tascalate variant.
-- Unverified: how student classes loaded by `ClassFileManager` are instrumented (agent or build time), and the cost of that instrumentation.
+- A yield inside `synchronized` loses the monitor, so `NodeInstrumenter` rejects `synchronized` (ADR 0002).
+- Instrumentation of student classes is verified, and its run-time cost is measured in ADR 0002: about 9x to 50x on CPU-bound code.
 - Unverified: behaviour with many workers blocked at once.
 - Single-run numbers; repeat before relying on the 150 ms figure.
 - The last resort kills the whole child JVM, so one stuck node fails the whole run. Replaying the run with that node pre-failed is deferred, because it needs deterministic nodes.

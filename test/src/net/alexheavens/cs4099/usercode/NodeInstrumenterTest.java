@@ -2,6 +2,7 @@ package net.alexheavens.cs4099.usercode;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -65,5 +66,55 @@ public class NodeInstrumenterTest {
 		Thread thread = start("QuietNode", "long end = System.nanoTime() + 300_000_000L; while (System.nanoTime() < end) { }");
 		thread.join(KILL_WAIT_MS);
 		assertFalse("an unkilled node must finish by itself", thread.isAlive());
+	}
+
+	private void assertRejected(String className, String members) throws Exception {
+		Path dir = Files.createTempDirectory("instrumenter");
+		File source = dir.resolve(className + ".java").toFile();
+		Files.writeString(source.toPath(), "public class " + className + " implements Runnable {\n" + members + "\n}\n");
+		try {
+			new DynamicClassLoader().loadClass(source);
+			fail("synchronized code must be rejected");
+		} catch (UnsupportedNodeCodeException e) {
+			assertTrue(e.getMessage(), e.getMessage().contains("synchronized") && e.getMessage().contains(className));
+		}
+	}
+
+	@Test
+	public void rejectsASynchronizedBlock() throws Exception {
+		assertRejected("BlockNode", "public void run() { synchronized (this) { } }");
+	}
+
+	@Test
+	public void rejectsASynchronizedMethod() throws Exception {
+		assertRejected("MethodNode", "public synchronized void run() { }");
+	}
+
+	/** Shapes for {@link #leavesMethodsThatCannotSuspendAlone()}. */
+	static final class Shapes {
+		int leaf(int a) {
+			return a * 31;
+		}
+
+		int caller(int a) {
+			return leaf(a);
+		}
+	}
+
+	@Test
+	public void leavesMethodsThatCannotSuspendAlone() throws Exception {
+		byte[] original;
+		try (java.io.InputStream in = Shapes.class.getResourceAsStream("NodeInstrumenterTest$Shapes.class")) {
+			original = in.readAllBytes();
+		}
+		var model = java.lang.classfile.ClassFile.of().parse(NodeInstrumenter.instrument(original));
+		for (var method : model.methods()) {
+			String name = method.methodName().stringValue();
+			boolean marked = method.findAttribute(java.lang.classfile.Attributes.runtimeInvisibleAnnotations()).isPresent();
+			if (name.equals("leaf"))
+				assertFalse("a method with no call or loop stays as compiled", marked);
+			if (name.equals("caller"))
+				assertTrue("a method with a call is instrumented", marked);
+		}
 	}
 }
