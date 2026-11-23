@@ -53,6 +53,8 @@ public final class ChildMain {
 			// Every node runs the same class, so it is compiled once, as when the nodes run in the simulator's JVM.
 			Class<?> script = CLASSES.computeIfAbsent(name, n -> load(dir, n));
 			return (NodeScript) script.getDeclaredConstructor().newInstance();
+		} catch (IllegalStateException e) {
+			throw e;
 		} catch (Exception e) {
 			throw new IllegalStateException("Cannot load student script " + name, e);
 		}
@@ -64,7 +66,8 @@ public final class ChildMain {
 			return source != null && source.exists() ? new DynamicClassLoader().loadClass(source)
 					: new ClasspathScriptLoader(name).loadClass(name);
 		} catch (Exception e) {
-			throw new IllegalStateException("Cannot load student script " + name, e);
+			// The failure frame carries only this exception's text, so the cause's message goes in it.
+			throw new IllegalStateException("Cannot load student script " + name + ": " + e.getMessage(), e);
 		}
 	}
 }
