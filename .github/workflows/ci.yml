@@ -48,6 +48,9 @@ jobs:
           java-version: '27'
           cache: gradle
 
+      - name: Pull the sandbox image
+        run: scripts/pull-sandbox-image.sh
+
       - name: Build, lint and test
         run: ./gradlew build --console=plain
 
