@@ -23,6 +23,12 @@ git config core.hooksPath .githooks
 java -jar build/libs/EasySim.jar   # opens the window; needs a display
 ```
 
+## Running nodes in a child JVM (experimental)
+
+Add `-Deasysim.child=true -Djavaflow.agent=<path of the Tascalate agent jar>` to run all student nodes in one child JVM, as set out in [ADR 0001](docs/adr/0001-shared-child-jvm-with-continuation-scheduler.md) and [ADR 0002](docs/adr/0002-child-jvm-protocol.md). A node that cannot be stopped fails the run and names the node. `-Deasysim.child.heap=<size>` sets the child's heap cap (default `512m`). The mode is off by default while it is built out. A script is compiled in the child from the source folder, or loaded from the classpath if it is a compiled class.
+
+Differences from the default mode: the time limit of a node counts wall-clock time that the node spends between requests, and the node CPU times in the results are those of the simulator's bridge threads, not of the student code.
+
 ## Tests
 
 ```

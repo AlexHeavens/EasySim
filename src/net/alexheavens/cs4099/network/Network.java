@@ -3,6 +3,7 @@ package net.alexheavens.cs4099.network;
 import java.util.ArrayList;
 import java.util.Random;
 
+import net.alexheavens.cs4099.child.ChildNodes;
 import net.alexheavens.cs4099.network.configuration.ILinkConfig;
 import net.alexheavens.cs4099.network.configuration.INetworkConfig;
 import net.alexheavens.cs4099.simulation.ImportedNode;
@@ -21,6 +22,7 @@ public class Network implements INetwork {
 	private ArrayList<ILinkImpl> links;
 	private ArrayList<Node> nodes;
 	private final ImportedNode userNodeClass;
+	private final ChildNodes childNodes;
 
 	/**
 	 * Creates an empty network.
@@ -31,6 +33,7 @@ public class Network implements INetwork {
 	 */
 	public Network(Class<? extends NodeScript> nodeClass) {
 		userNodeClass = ImportedNode.createType(nodeClass);
+		childNodes = null;
 		links = new ArrayList<ILinkImpl>();
 		nodes = new ArrayList<Node>();
 	}
@@ -51,6 +54,7 @@ public class Network implements INetwork {
 	public Network(INetworkConfig config, Class<? extends Node> nodeClass)
 			throws InstantiationException, IllegalAccessException {
 		userNodeClass = ImportedNode.createType(nodeClass);
+		childNodes = null;
 		links = new ArrayList<ILinkImpl>();
 		nodes = new ArrayList<Node>();
 		for (int i = 0; i < config.nodeCount(); i++) {
@@ -95,8 +99,42 @@ public class Network implements INetwork {
 		addConfig(config);
 	}
 
-	private void addConfig(INetworkConfig config)
-			throws InstantiationException, IllegalAccessException {
+	/**
+	 * Creates a network whose nodes run the student script in a child JVM.
+	 * 
+	 * @param childNodes
+	 *            the child JVM that runs the scripts. The caller closes it after the simulation.
+	 * @param scriptClass
+	 *            the name of the script class, which the child compiles from source or loads from the classpath.
+	 * @param config
+	 *            the configuration of the network.
+	 * @param scrambleIds
+	 *            if the machine IDs of the nodes are to be scrambled.
+	 */
+	public Network(ChildNodes childNodes, String scriptClass,
+			INetworkConfig config, boolean scrambleIds) {
+		userNodeClass = null;
+		this.childNodes = childNodes;
+		links = new ArrayList<ILinkImpl>();
+		nodes = new ArrayList<Node>();
+
+		final Random randomGenerator = new Random();
+		final int initiator = randomGenerator.nextInt(config.nodeCount());
+		final int scrambleCode = (scrambleIds) ? randomGenerator.nextInt(config
+				.nodeCount()) : 0;
+
+		for (int i = 0; i < config.nodeCount(); i++)
+			addNode(childNodes.node(scriptClass, i == initiator), scrambleCode);
+
+		addConfig(config);
+	}
+
+	/** @return The child JVM that runs the nodes' scripts, or null if they run in this JVM. */
+	public ChildNodes childNodes() {
+		return childNodes;
+	}
+
+	private void addConfig(INetworkConfig config) {
 		for (ILinkConfig link : config.links()) {
 			INodeImpl source = nodes.get(link.source());
 			INodeImpl target = nodes.get(link.target());

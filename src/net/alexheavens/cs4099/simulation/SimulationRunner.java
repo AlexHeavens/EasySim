@@ -5,6 +5,7 @@ import java.util.Observable;
 import java.util.Observer;
 import java.util.Set;
 
+import net.alexheavens.cs4099.child.ChildJvm;
 import net.alexheavens.cs4099.concurrent.LeaderBarrier;
 import net.alexheavens.cs4099.network.Network;
 import net.alexheavens.cs4099.network.Node;
@@ -130,7 +131,14 @@ public class SimulationRunner implements Observer {
 		}
 
 		pauseBarrier.resumeAll();
-		
+
+		if (network.childNodes() != null) {
+			network.childNodes().settle();
+			ChildJvm.Failure failure = network.childNodes().failure();
+			if (failure != null)
+				throw new IllegalStateException("The simulation failed: " + failure.reason());
+		}
+
 		timestep = TIMESTEP_END;
 		simState = SimulationState.POST_SIMULATION;
 
