@@ -34,6 +34,20 @@ def bundleAgent = tasks.register('bundleAgent', Copy) {
 	into agentDir.map { it.dir('net/alexheavens/cs4099/child') }
 }
 
+// The image that the child runs in is pinned in pins/sandbox/Dockerfile, where Dependabot sees it (ADR 0003).
+def bundleImage = tasks.register('bundleImage') {
+	def dockerfile = file('pins/sandbox/Dockerfile')
+	def target = agentDir.map { it.file('net/alexheavens/cs4099/child/sandbox-image.txt') }
+	inputs.file dockerfile
+	outputs.file target
+	doLast {
+		def image = dockerfile.readLines().find { it.startsWith('FROM ') }?.substring(5)?.trim()
+		if (!image)
+			throw new GradleException('No FROM line in pins/sandbox/Dockerfile')
+		target.get().asFile.text = image
+	}
+}
+
 sourceSets {
 	main {
 		java {
@@ -84,7 +98,7 @@ tasks.withType(JavaCompile).configureEach {
 def agentPackages = ['**/scheduler/**', '**/child/**']
 
 tasks.named('processResources') {
-	dependsOn bundleAgent
+	dependsOn bundleAgent, bundleImage
 }
 
 tasks.named('test') {

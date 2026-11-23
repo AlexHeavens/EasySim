@@ -4,8 +4,9 @@ import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.net.InetAddress;
-import java.net.Socket;
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.util.concurrent.ConcurrentHashMap;
 
 import net.alexheavens.cs4099.scheduler.ContinuationScheduler;
@@ -13,10 +14,12 @@ import net.alexheavens.cs4099.usercode.DynamicClassLoader;
 import net.alexheavens.cs4099.usercode.NodeScript;
 
 /**
- * Entry point of the child JVM (ADR 0002). {@link ChildJvm} starts it with the Tascalate agent. It connects to the
- * simulator on the loopback port, then runs {@link NodeHost} until the simulator closes the connection.
+ * Entry point of the child JVM (ADR 0002). {@link ChildJvm} starts it in a container with the Tascalate agent. The
+ * protocol runs over standard input and output, because the container has no network. {@code System.out} is pointed at
+ * standard error first, so that student output cannot corrupt the frames. The child then runs {@link NodeHost} until
+ * the simulator closes its input.
  * <p>
- * Arguments: port, worker count, time slice in safe-point ticks, directory holding the student sources ({@code -} for
+ * Arguments: worker count, time slice in safe-point ticks, directory holding the student sources ({@code -} for
  * none).
  */
 public final class ChildMain {
@@ -30,16 +33,17 @@ public final class ChildMain {
 	}
 
 	public static void main(String[] args) throws Exception {
-		int port = Integer.parseInt(args[0]);
-		int workers = Integer.parseInt(args[1]);
-		int sliceTicks = Integer.parseInt(args[2]);
-		File scriptDir = args[3].equals(NO_SCRIPT_DIR) ? null : new File(args[3]);
-		try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port);
-				ContinuationScheduler scheduler = new ContinuationScheduler(workers, sliceTicks)) {
-			// The host writes a frame as several small writes with no flush, so the stream is not buffered.
-			socket.setTcpNoDelay(true);
-			new NodeHost(new DataInputStream(new BufferedInputStream(socket.getInputStream())),
-					new DataOutputStream(socket.getOutputStream()), name -> script(scriptDir, name), scheduler).run();
+		int workers = Integer.parseInt(args[0]);
+		int sliceTicks = Integer.parseInt(args[1]);
+		File scriptDir = args[2].equals(NO_SCRIPT_DIR) ? null : new File(args[2]);
+		// The host writes a frame as several small writes with no flush, so the stream is not buffered.
+		DataOutputStream out = new DataOutputStream(new FileOutputStream(FileDescriptor.out));
+		DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(FileDescriptor.in)));
+		System.setOut(System.err);
+		try (ContinuationScheduler scheduler = new ContinuationScheduler(workers, sliceTicks)) {
+			out.writeInt(ChildJvm.READY);
+			out.flush();
+			new NodeHost(in, out, name -> script(scriptDir, name), scheduler).run();
 		}
 	}
 

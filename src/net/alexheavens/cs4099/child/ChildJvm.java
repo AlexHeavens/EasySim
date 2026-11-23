@@ -5,32 +5,41 @@ import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
+import java.io.File;
+import java.io.InputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
- * The simulator's side of the child JVM that runs the student nodes (ADR 0002). It starts the process, owns the
- * socket, and routes frames: requests and the end of a node go to that node's inbox, and replies and commands go
- * out through {@link #send(Frame)}.
+ * The simulator's side of the child JVM that runs the student nodes (ADR 0002). The child runs in a Docker container
+ * that has no network, a read-only file system, no capabilities and capped memory, CPU and processes (ADR 0003). This
+ * class starts the container and routes frames over its standard input and output: requests and the end of a node go
+ * to that node's inbox, and replies and commands go out through {@link #send(Frame)}.
  * <p>
  * Kill ladder: {@link #kill(int)} sends {@link Frame.Kill}. If {@link Frame.Ended} does not arrive within the grace
- * period, the child process is killed, the run is failed, and the failure names the node.
+ * period, the container is removed, the run is failed, and the failure names the node.
  * <p>
  * Inboxes run on the reader thread, so they must not block.
  */
 public final class ChildJvm implements AutoCloseable {
+
+	/** The first four bytes that the child writes, once it can take frames. */
+	static final int READY = 0x45535931;
 
 	/** Node number in a {@link Failure} that no single node caused, such as the child JVM running out of memory. */
 	public static final int NO_NODE = -1;
@@ -40,15 +49,23 @@ public final class ChildJvm implements AutoCloseable {
 	 *
 	 * @param agent       the Tascalate agent jar
 	 * @param scriptDir   the directory holding the student sources, or null if scripts are classes on the classpath
-	 * @param maxHeap     the child's heap cap, as the {@code -Xmx} value, for example {@code 512m}
+	 * @param heapMegabytes the child's heap cap in megabytes. The container's memory limit adds room for the JVM itself.
 	 * @param workers     scheduler worker threads
 	 * @param sliceTicks  safe points a node runs before it yields its worker
 	 * @param killGrace   how long a killed node may take to end before the process is killed
-	 * @param startupWait how long the child may take to connect
+	 * @param startupWait how long the child may take to say it is ready, which includes pulling the image
 	 */
-	public record Config(Path agent, Path scriptDir, String maxHeap, int workers, int sliceTicks, Duration killGrace,
-			Duration startupWait) {
+	public record Config(Path agent, Path scriptDir, int heapMegabytes, int workers, int sliceTicks,
+			Duration killGrace, Duration startupWait) {
 	}
+
+	/** The resource that the build writes from {@code pins/sandbox/Dockerfile}: the image the child runs in. */
+	private static final String IMAGE_RESOURCE = "sandbox-image.txt";
+
+	private static final int NON_HEAP_MEGABYTES = 256;
+	private static final int MAX_PROCESSES = 512;
+	private static final int SCRATCH_MEGABYTES = 64;
+	private static final String SANDBOX_DIR = "/easysim";
 
 	/** Why the run failed. {@code node} is {@link #NO_NODE} when the child ended without a node to blame. */
 	public record Failure(int node, String reason) {
@@ -56,8 +73,8 @@ public final class ChildJvm implements AutoCloseable {
 
 	private final Config config;
 	private final Consumer<Failure> onFailure;
+	private final String container = "easysim-" + UUID.randomUUID();
 	private final Process process;
-	private final Socket socket;
 	private final DataOutputStream out;
 	private final ConcurrentHashMap<Integer, Node> nodes = new ConcurrentHashMap<>();
 	private final ScheduledExecutorService timers = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -78,23 +95,29 @@ public final class ChildJvm implements AutoCloseable {
 		}
 	}
 
-	/** Starts the child and waits for it to connect. {@code onFailure} is called once, if the run fails. */
+	/**
+	 * Starts the container and waits for the child to say it is ready. {@code onFailure} is called once, if the run
+	 * fails.
+	 */
 	public ChildJvm(Config config, Consumer<Failure> onFailure) throws IOException {
 		this.config = config;
 		this.onFailure = onFailure;
-		try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
-			process = new ProcessBuilder(command(server.getLocalPort())).inheritIO().start();
-			try {
-				server.setSoTimeout((int) config.startupWait().toMillis());
-				socket = server.accept();
-			} catch (IOException e) {
-				process.destroyForcibly();
-				throw e;
-			}
+		process = new ProcessBuilder(command()).redirectError(ProcessBuilder.Redirect.INHERIT).start();
+		out = new DataOutputStream(new BufferedOutputStream(process.getOutputStream()));
+		DataInputStream in = new DataInputStream(new BufferedInputStream(process.getInputStream()));
+		ScheduledFuture<?> startupLimit = timers.schedule(this::terminate, config.startupWait().toMillis(),
+				TimeUnit.MILLISECONDS);
+		try {
+			if (in.readInt() != READY)
+				throw new IOException("The child JVM did not start as expected.");
+		} catch (IOException e) {
+			closing = true;
+			terminate();
+			timers.shutdownNow();
+			throw new IOException("The child container did not start. Is Docker running? " + e, e);
+		} finally {
+			startupLimit.cancel(false);
 		}
-		socket.setTcpNoDelay(true);
-		out = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
-		DataInputStream in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 		Thread reader = new Thread(() -> read(in), "child-jvm-reader");
 		reader.setDaemon(true);
 		reader.start();
@@ -104,18 +127,52 @@ public final class ChildJvm implements AutoCloseable {
 		});
 	}
 
-	private List<String> command(int port) {
-		List<String> command = new ArrayList<>();
-		command.add(Path.of(System.getProperty("java.home"), "bin", "java").toString());
-		command.add("-javaagent:" + config.agent());
-		command.add("-Xmx" + config.maxHeap());
-		command.add("-cp");
-		command.add(System.getProperty("java.class.path"));
-		command.add(ChildMain.class.getName());
-		command.add(Integer.toString(port));
-		command.add(Integer.toString(config.workers()));
-		command.add(Integer.toString(config.sliceTicks()));
-		command.add(config.scriptDir() == null ? ChildMain.NO_SCRIPT_DIR : config.scriptDir().toString());
+	/**
+	 * Runs the child as the simulator's own user, not as root. Without capabilities, root cannot read the files of a
+	 * user whose directories are private. A system without Unix user ids gets the image's default user.
+	 */
+	private static List<String> user() {
+		try {
+			Path home = Path.of(System.getProperty("user.home"));
+			return List.of("--user", Files.getAttribute(home, "unix:uid") + ":" + Files.getAttribute(home, "unix:gid"));
+		} catch (IOException | UnsupportedOperationException | IllegalArgumentException e) {
+			return List.of();
+		}
+	}
+
+	private static String image() {
+		try (InputStream resource = ChildJvm.class.getResourceAsStream(IMAGE_RESOURCE)) {
+			if (resource == null)
+				throw new IllegalStateException("The sandbox image name is not bundled. Build with Gradle.");
+			return new String(resource.readAllBytes(), StandardCharsets.UTF_8).trim();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	private List<String> command() {
+		List<String> command = new ArrayList<>(List.of("docker", "run", "--rm", "--interactive", "--name", container,
+				"--network", "none", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+				"--pids-limit", Integer.toString(MAX_PROCESSES),
+				"--memory", (config.heapMegabytes() + NON_HEAP_MEGABYTES) + "m",
+				"--memory-swap", (config.heapMegabytes() + NON_HEAP_MEGABYTES) + "m",
+				"--cpus", Integer.toString(config.workers()),
+				"--tmpfs", "/sandbox-tmp:rw,noexec,nosuid,size=" + SCRATCH_MEGABYTES + "m",
+				"--volume", config.agent().toAbsolutePath() + ":" + SANDBOX_DIR + "/agent.jar:ro"));
+		command.addAll(user());
+		if (config.scriptDir() != null)
+			command.addAll(List.of("--volume", config.scriptDir().toAbsolutePath() + ":" + SANDBOX_DIR + "/scripts:ro"));
+		// The classpath entries are mounted read-only at their own paths, so the child sees the classpath as it is here.
+		Set<String> classpath = new LinkedHashSet<>();
+		for (String entry : System.getProperty("java.class.path").split(File.pathSeparator)) {
+			Path path = Path.of(entry).toAbsolutePath();
+			if (Files.exists(path) && classpath.add(path.toString()))
+				command.addAll(List.of("--volume", path + ":" + path + ":ro"));
+		}
+		command.addAll(List.of(image(), "java", "-javaagent:" + SANDBOX_DIR + "/agent.jar", "-Xmx" + config.heapMegabytes() + "m",
+				"-Djava.io.tmpdir=/sandbox-tmp", "-XX:-UsePerfData", "-cp", String.join(File.pathSeparator, classpath),
+				ChildMain.class.getName(), Integer.toString(config.workers()), Integer.toString(config.sliceTicks()),
+				config.scriptDir() == null ? ChildMain.NO_SCRIPT_DIR : SANDBOX_DIR + "/scripts"));
 		return command;
 	}
 
@@ -196,25 +253,43 @@ public final class ChildJvm implements AutoCloseable {
 		if (failure != null || closing)
 			return;
 		failure = reason;
-		process.destroyForcibly();
+		terminate();
 		onFailure.accept(reason);
 	}
 
-	/** Closes the connection, which ends the child, and kills the child if it does not exit. */
+	/**
+	 * Removes the container, and then the client process. Killing only the client would leave the container running,
+	 * because the Docker daemon owns it.
+	 */
+	private void terminate() {
+		try {
+			Process remove = new ProcessBuilder("docker", "rm", "--force", container).redirectErrorStream(true)
+					.redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+			if (!remove.waitFor(10, TimeUnit.SECONDS))
+				remove.destroyForcibly();
+		} catch (IOException e) {
+			// The client kill below still ends the run; the container then ends when its input closes.
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+		process.destroyForcibly();
+	}
+
+	/** Closes the child's input, which ends it, and removes the container if it does not exit. */
 	@Override
 	public void close() {
 		closing = true;
 		timers.shutdownNow();
 		try {
-			socket.close();
+			out.close();
 		} catch (IOException e) {
 			// Closing anyway.
 		}
 		try {
 			if (!process.waitFor(5, TimeUnit.SECONDS))
-				process.destroyForcibly();
+				terminate();
 		} catch (InterruptedException e) {
-			process.destroyForcibly();
+			terminate();
 			Thread.currentThread().interrupt();
 		}
 	}
