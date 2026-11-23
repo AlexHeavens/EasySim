@@ -19,7 +19,7 @@ public class NetworkTest {
 
 	@Before
 	public void setup() throws InstantiationException, IllegalAccessException {
-		testNet = new Network(new NetworkConfig(), MockUserNode.class);
+		testNet = new Network(new NetworkConfig(), false, initiator -> new MockUserNode());
 		testNodes = new Node[N_TESTNODES];
 
 		for (int i = 0; i < testNodes.length; i++) {
@@ -161,7 +161,7 @@ public class NetworkTest {
 		}
 
 		try {
-			testNet = new Network(netCon, MockUserNode.class);
+			testNet = new Network(netCon, false, initiator -> new MockUserNode());
 		} catch (Exception e) {
 			fail("Exception in Network creation: " + e.getLocalizedMessage());
 		}

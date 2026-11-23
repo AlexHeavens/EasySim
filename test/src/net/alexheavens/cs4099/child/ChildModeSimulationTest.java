@@ -26,6 +26,7 @@ import org.junit.rules.TemporaryFolder;
 import net.alexheavens.cs4099.ApplicationController;
 import net.alexheavens.cs4099.examples.TreeLeaderNode;
 import net.alexheavens.cs4099.network.Network;
+import net.alexheavens.cs4099.network.Node;
 import net.alexheavens.cs4099.network.configuration.INetworkConfig;
 import net.alexheavens.cs4099.network.configuration.NetworkConfigFactory;
 import net.alexheavens.cs4099.simulation.SimulationResults;
@@ -76,7 +77,13 @@ public class ChildModeSimulationTest {
 	@SuppressWarnings("unchecked")
 	private SimulationResults inThisJvm(File source, INetworkConfig config) throws Exception {
 		Class<? extends NodeScript> script = (Class<? extends NodeScript>) new DynamicClassLoader().loadClass(source);
-		return new SimulationRunner(new Network(script, config, false), LENGTH).simulate();
+		return new SimulationRunner(new Network(config, false, initiator -> {
+			try {
+				return new Node(script.getDeclaredConstructor().newInstance(), initiator);
+			} catch (ReflectiveOperationException e) {
+				throw new IllegalStateException(e);
+			}
+		}), LENGTH).simulate();
 	}
 
 	private SimulationResults inChildJvm(INetworkConfig config) throws Exception {
@@ -155,14 +162,16 @@ public class ChildModeSimulationTest {
 	}
 
 	@Test(timeout = 180000)
-	public void testControllerRunsNodesInChildJvmWhenFlagged() throws Exception {
+	public void testControllerRunsNodesInChildJvmWithTheBundledAgent() throws Exception {
 		File output = folder.newFile("results.json");
-		System.setProperty(ChildNodes.ENABLED_PROPERTY, "true");
+		// The agent jar that the build bundles must work without the property that the other tests set.
+		String override = System.getProperty(ChildNodes.AGENT_PROPERTY);
+		System.clearProperty(ChildNodes.AGENT_PROPERTY);
 		try {
 			new ApplicationController().simulate(new NetworkConfigFactory().createTreeNetwork(4, 3), LENGTH,
 					TreeLeaderNode.class, new ClassLimitation(true, true), output, 0, false);
 		} finally {
-			System.clearProperty(ChildNodes.ENABLED_PROPERTY);
+			System.setProperty(ChildNodes.AGENT_PROPERTY, override);
 		}
 		JSONObject results = JSONObject.fromObject(Files.readString(output.toPath()));
 		assertTrue(results.getJSONArray("events").size() > 0);

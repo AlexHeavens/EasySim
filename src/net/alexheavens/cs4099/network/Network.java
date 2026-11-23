@@ -2,12 +2,11 @@ package net.alexheavens.cs4099.network;
 
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.function.Function;
 
 import net.alexheavens.cs4099.child.ChildNodes;
 import net.alexheavens.cs4099.network.configuration.ILinkConfig;
 import net.alexheavens.cs4099.network.configuration.INetworkConfig;
-import net.alexheavens.cs4099.simulation.ImportedNode;
-import net.alexheavens.cs4099.usercode.NodeScript;
 
 /**
  * The representation of a simulated network.
@@ -19,84 +18,28 @@ import net.alexheavens.cs4099.usercode.NodeScript;
  */
 public class Network implements INetwork {
 
-	private ArrayList<ILinkImpl> links;
-	private ArrayList<Node> nodes;
-	private final ImportedNode userNodeClass;
+	private final ArrayList<ILinkImpl> links = new ArrayList<ILinkImpl>();
+	private final ArrayList<Node> nodes = new ArrayList<Node>();
 	private final ChildNodes childNodes;
 
-	/**
-	 * Creates an empty network.
-	 * 
-	 * @param nodeClass
-	 *            the class of script that the nodes within the network will
-	 *            execute.
-	 */
-	public Network(Class<? extends NodeScript> nodeClass) {
-		userNodeClass = ImportedNode.createType(nodeClass);
+	/** Creates an empty network. */
+	public Network() {
 		childNodes = null;
-		links = new ArrayList<ILinkImpl>();
-		nodes = new ArrayList<Node>();
 	}
 
 	/**
-	 * Creates a network for a particular configuration.
+	 * Creates a network for a particular configuration, with one randomly chosen initiator node.
 	 * 
 	 * @param config
 	 *            the configuration of the network.
-	 * @param nodeClass
-	 *            the class of script that the nodes within the network will
-	 *            execute.
-	 * @throws InstantiationException
-	 *             if the node class cannot be instantiated.
-	 * @throws IllegalAccessException
-	 *             if a field cannot be accessed in the script class.
-	 */
-	public Network(INetworkConfig config, Class<? extends Node> nodeClass)
-			throws InstantiationException, IllegalAccessException {
-		userNodeClass = ImportedNode.createType(nodeClass);
-		childNodes = null;
-		links = new ArrayList<ILinkImpl>();
-		nodes = new ArrayList<Node>();
-		for (int i = 0; i < config.nodeCount(); i++) {
-			addNode((Node) userNodeClass.create(), 0);
-		}
-
-		addConfig(config);
-	}
-
-	/**
-	 * Creates a network for a particular configuration.
-	 * 
-	 * @param config
-	 *            the configuration of the network.
-	 * @param nodeClass
-	 *            the class of script that the nodes within the network will
-	 *            execute.
 	 * @param scrambleIds
-	 *            if the machine IDs of the nodes are to be scambled.
-	 * @throws InstantiationException
-	 *             if the node class cannot be instantiated.
-	 * @throws IllegalAccessException
-	 *             if a field cannot be accessed in the script class.
+	 *            if the machine IDs of the nodes are to be scrambled.
+	 * @param nodeFactory
+	 *            creates each node, given whether it is the initiator.
 	 */
-	public Network(Class<? extends NodeScript> nodeClass,
-			INetworkConfig config, boolean scrambleIds)
-			throws InstantiationException, IllegalAccessException {
-		this(nodeClass);
-
-		// Create a single, random initiator node.
-		final Random randomGenerator = new Random();
-		final int initiator = randomGenerator.nextInt(config.nodeCount());
-		final int scrambleCode = (scrambleIds) ? randomGenerator.nextInt(config
-				.nodeCount()) : 0;
-
-		for (int i = 0; i < config.nodeCount(); i++) {
-			Node newNode = new Node((NodeScript) userNodeClass.create(),
-					i == initiator);
-			addNode(newNode, scrambleCode);
-		}
-
-		addConfig(config);
+	public Network(INetworkConfig config, boolean scrambleIds,
+			Function<Boolean, Node> nodeFactory) {
+		this(null, config, scrambleIds, nodeFactory);
 	}
 
 	/**
@@ -113,18 +56,21 @@ public class Network implements INetwork {
 	 */
 	public Network(ChildNodes childNodes, String scriptClass,
 			INetworkConfig config, boolean scrambleIds) {
-		userNodeClass = null;
+		this(childNodes, config, scrambleIds,
+				initiator -> childNodes.node(scriptClass, initiator));
+	}
+
+	private Network(ChildNodes childNodes, INetworkConfig config,
+			boolean scrambleIds, Function<Boolean, Node> nodeFactory) {
 		this.childNodes = childNodes;
-		links = new ArrayList<ILinkImpl>();
-		nodes = new ArrayList<Node>();
 
 		final Random randomGenerator = new Random();
-		final int initiator = randomGenerator.nextInt(config.nodeCount());
-		final int scrambleCode = (scrambleIds) ? randomGenerator.nextInt(config
-				.nodeCount()) : 0;
+		final int count = config.nodeCount();
+		final int initiator = (count == 0) ? -1 : randomGenerator.nextInt(count);
+		final int scrambleCode = (scrambleIds) ? randomGenerator.nextInt(count) : 0;
 
-		for (int i = 0; i < config.nodeCount(); i++)
-			addNode(childNodes.node(scriptClass, i == initiator), scrambleCode);
+		for (int i = 0; i < count; i++)
+			addNode(nodeFactory.apply(i == initiator), scrambleCode);
 
 		addConfig(config);
 	}

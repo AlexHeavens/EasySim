@@ -25,10 +25,22 @@ dependencies {
 	testImplementation 'junit:junit:4.13.2'
 }
 
+// The child JVM needs the agent jar (ADR 0002), so the build bundles it as a resource next to ChildNodes.
+def agentDir = layout.buildDirectory.dir('generated/agent')
+def bundleAgent = tasks.register('bundleAgent', Copy) {
+	from(configurations.javaflowAgent) {
+		rename { 'javaflow-agent.jar' }
+	}
+	into agentDir.map { it.dir('net/alexheavens/cs4099/child') }
+}
+
 sourceSets {
 	main {
 		java {
 			srcDir 'src'
+		}
+		resources {
+			srcDir agentDir
 		}
 	}
 
@@ -70,6 +82,10 @@ tasks.withType(JavaCompile).configureEach {
 // The scheduler's continuations need the Tascalate agent to instrument the node classes (ADR 0001). The agent slows
 // the timing-sensitive profiler tests, so only the tests that need it run with it, in their own task.
 def agentPackages = ['**/scheduler/**', '**/child/**']
+
+tasks.named('processResources') {
+	dependsOn bundleAgent
+}
 
 tasks.named('test') {
 	exclude agentPackages
